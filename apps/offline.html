@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>No Internet - Offline</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      background-color: #202124;
+      color: #e8eaed;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      user-select: none;
+    }
+    .error-container {
+      max-width: 580px;
+      width: 100%;
+    }
+    .dino-header {
+      margin-bottom: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .dino-icon {
+      width: 56px;
+      height: 56px;
+      cursor: pointer;
+      filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.4));
+      transition: transform 0.15s ease;
+    }
+    .dino-icon:hover {
+      transform: scale(1.08);
+    }
+    .high-score {
+      font-family: monospace;
+      font-size: 14px;
+      color: #9aa0a6;
+      letter-spacing: 1px;
+    }
+    h1 {
+      font-size: 24px;
+      font-weight: 500;
+      color: #e8eaed;
+      margin-bottom: 12px;
+      line-height: 1.3;
+    }
+    p {
+      font-size: 14px;
+      line-height: 1.6;
+      color: #9aa0a6;
+      margin-bottom: 16px;
+    }
+    ul {
+      margin-left: 20px;
+      margin-bottom: 24px;
+      color: #9aa0a6;
+      font-size: 14px;
+      line-height: 1.7;
+    }
+    .error-code {
+      font-family: monospace;
+      font-size: 12px;
+      color: #80868b;
+      margin-bottom: 24px;
+    }
+    .btn-group {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+    .btn {
+      background-color: #8ab4f8;
+      color: #202124;
+      border: none;
+      border-radius: 4px;
+      padding: 8px 18px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background-color 0.15s ease, transform 0.05s;
+    }
+    .btn:hover {
+      background-color: #aecbfa;
+    }
+    .btn:active {
+      transform: scale(0.98);
+    }
+    .btn-secondary {
+      background-color: #303134;
+      color: #8ab4f8;
+    }
+    .btn-secondary:hover {
+      background-color: #3c4043;
+    }
+    /* Mini Game Canvas */
+    .game-box {
+      margin: 20px 0;
+      border: 1px solid #3c4043;
+      border-radius: 6px;
+      background: #17181c;
+      display: none;
+      position: relative;
+      overflow: hidden;
+    }
+    .game-box.active {
+      display: block;
+    }
+    canvas {
+      display: block;
+      width: 100%;
+      height: 150px;
+      background: #17181c;
+    }
+    .game-hint {
+      font-size: 12px;
+      color: #e879f9;
+      margin-top: 6px;
+    }
+  </style>
+</head>
+<body>
+  <div class="error-container">
+    <div class="dino-header">
+      <svg class="dino-icon" id="start-game-icon" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" title="Click or Press Space to Play">
+        <rect x="18" y="6" width="16" height="14" rx="2" fill="#9AA0A6"/>
+        <rect x="30" y="8" width="4" height="4" rx="1" fill="#202124"/>
+        <rect x="22" y="18" width="16" height="14" rx="2" fill="#9AA0A6"/>
+        <rect x="12" y="24" width="10" height="8" rx="2" fill="#9AA0A6"/>
+        <rect x="24" y="32" width="4" height="10" rx="1" fill="#9AA0A6"/>
+        <rect x="32" y="32" width="4" height="10" rx="1" fill="#9AA0A6"/>
+        <rect x="36" y="40" width="4" height="2" fill="#9AA0A6"/>
+        <rect x="28" y="40" width="4" height="2" fill="#9AA0A6"/>
+      </svg>
+      <div class="high-score" id="score-display">HI 00000 00000</div>
+    </div>
+
+    <div class="game-box" id="game-box">
+      <canvas id="game-canvas" width="560" height="150"></canvas>
+      <div class="game-hint">Press SPACE or UP to jump • Tap screen on touch</div>
+    </div>
+
+    <h1>No internet</h1>
+    <p>Try:</p>
+    <ul>
+      <li>Checking the network cables, modem, and router</li>
+      <li>Reconnecting to Wi-Fi</li>
+      <li>Verifying your proxy settings in System Preferences.run</li>
+      <li>Notice: Some external websites restrict iframe embedding via X-Frame-Options</li>
+    </ul>
+    <div class="error-code" id="error-code">ERR_INTERNET_DISCONNECTED</div>
+    <div class="btn-group">
+      <button class="btn" id="reload-btn" type="button">Reload</button>
+      <button class="btn btn-secondary" id="play-btn" type="button">Play Felis Runner</button>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      const reloadBtn = document.getElementById('reload-btn');
+      const playBtn = document.getElementById('play-btn');
+      const dinoIcon = document.getElementById('start-game-icon');
+      const gameBox = document.getElementById('game-box');
+      const canvas = document.getElementById('game-canvas');
+      const ctx = canvas.getContext('2d');
+      const scoreDisplay = document.getElementById('score-display');
+
+      // Check query params for custom error
+      const params = new URLSearchParams(window.location.search);
+      const targetUrl = params.get('url');
+      const code = params.get('code');
+      if (code) {
+        document.getElementById('error-code').textContent = code;
+      }
+      if (targetUrl) {
+        document.querySelector('h1').textContent = `Can't reach this page`;
+        const p = document.createElement('p');
+        p.style.color = '#e879f9';
+        p.style.wordBreak = 'break-all';
+        p.textContent = targetUrl;
+        document.querySelector('h1').after(p);
+      }
+
+      reloadBtn.addEventListener('click', () => {
+        if (targetUrl) {
+          window.location.href = targetUrl;
+        } else {
+          window.location.reload();
+        }
+      });
+
+      // Mini Felis Cat Runner Game
+      let gameActive = false;
+      let score = 0;
+      let highScore = parseInt(localStorage.getItem('felis_runner_hi') || '0', 10);
+      let cat = { x: 40, y: 110, w: 26, h: 26, vy: 0, grounded: true };
+      let obstacles = [];
+      let frame = 0;
+      let animId = null;
+
+      function updateScoreText() {
+        const s = String(Math.floor(score)).padStart(5, '0');
+        const h = String(highScore).padStart(5, '0');
+        scoreDisplay.textContent = `HI ${h} ${s}`;
+      }
+      updateScoreText();
+
+      function startGame() {
+        if (gameActive) return;
+        gameActive = true;
+        gameBox.classList.add('active');
+        score = 0;
+        obstacles = [];
+        cat.y = 110;
+        cat.vy = 0;
+        cat.grounded = true;
+        loop();
+      }
+
+      function jump() {
+        if (!gameActive) {
+          startGame();
+          return;
+        }
+        if (cat.grounded) {
+          cat.vy = -10;
+          cat.grounded = false;
+        }
+      }
+
+      window.addEventListener('keydown', e => {
+        if (e.code === 'Space' || e.code === 'ArrowUp') {
+          e.preventDefault();
+          jump();
+        }
+      });
+      canvas.addEventListener('pointerdown', jump);
+      playBtn.addEventListener('click', startGame);
+      dinoIcon.addEventListener('click', startGame);
+
+      function loop() {
+        frame++;
+        score += 0.15;
+        if (score > highScore) {
+          highScore = Math.floor(score);
+          localStorage.setItem('felis_runner_hi', highScore);
+        }
+        updateScoreText();
+
+        // Gravity & Physics
+        cat.vy += 0.6;
+        cat.y += cat.vy;
+        if (cat.y >= 110) {
+          cat.y = 110;
+          cat.vy = 0;
+          cat.grounded = true;
+        }
+
+        // Spawn obstacles
+        if (frame % 85 === 0) {
+          obstacles.push({ x: canvas.width + 10, w: 16, h: 22 + Math.random() * 12 });
+        }
+
+        // Update obstacles
+        for (let i = obstacles.length - 1; i >= 0; i--) {
+          obstacles[i].x -= 4.5;
+          // Collision check
+          const o = obstacles[i];
+          const catBottom = cat.y + cat.h;
+          const obsTop = 136 - o.h;
+          if (
+            cat.x + cat.w - 4 > o.x &&
+            cat.x + 4 < o.x + o.w &&
+            catBottom > obsTop
+          ) {
+            // Game Over
+            gameActive = false;
+            ctx.fillStyle = 'rgba(232, 121, 249, 0.9)';
+            ctx.font = 'bold 16px sans-serif';
+            ctx.fillText('GAME OVER - PRESS SPACE', 170, 75);
+            return;
+          }
+          if (o.x < -30) obstacles.splice(i, 1);
+        }
+
+        // Draw
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // Ground line
+        ctx.strokeStyle = '#3c4043';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(0, 136);
+        ctx.lineTo(canvas.width, 136);
+        ctx.stroke();
+
+        // Cat
+        ctx.fillStyle = '#e879f9';
+        ctx.fillRect(cat.x, cat.y, cat.w, cat.h);
+        // Cat ears
+        ctx.beginPath();
+        ctx.moveTo(cat.x + 3, cat.y);
+        ctx.lineTo(cat.x + 7, cat.y - 6);
+        ctx.lineTo(cat.x + 11, cat.y);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(cat.x + cat.w - 11, cat.y);
+        ctx.lineTo(cat.x + cat.w - 7, cat.y - 6);
+        ctx.lineTo(cat.x + cat.w - 3, cat.y);
+        ctx.fill();
+
+        // Obstacles (cactus/blocks)
+        ctx.fillStyle = '#9aa0a6';
+        obstacles.forEach(o => {
+          ctx.fillRect(o.x, 136 - o.h, o.w, o.h);
+        });
+
+        if (gameActive) {
+          animId = requestAnimationFrame(loop);
+        }
+      }
+    })();
+  </script>
+</body>
+</html>

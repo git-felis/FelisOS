@@ -1,0 +1,939 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KneadyDox - Document Viewer</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    :root {
+      --dox-bg: #1c1d22;
+      --dox-sidebar: #17181c;
+      --dox-toolbar: #222329;
+      --dox-border: rgba(255, 255, 255, 0.08);
+      --dox-text: #e2e8f0;
+      --dox-dim: #94a3b8;
+      --dox-accent: #38bdf8;
+      --paper-bg: #ffffff;
+      --paper-text: #1e293b;
+    }
+    body.theme-dark {
+      --paper-bg: #24262d;
+      --paper-text: #f1f5f9;
+    }
+    body.theme-sepia {
+      --paper-bg: #fbf0d9;
+      --paper-text: #433422;
+    }
+
+    body {
+      background-color: var(--dox-bg);
+      color: var(--dox-text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      user-select: none;
+    }
+
+    /* Top Toolbar */
+    .toolbar {
+      height: 42px;
+      background-color: var(--dox-toolbar);
+      border-bottom: 1px solid var(--dox-border);
+      display: flex;
+      align-items: center;
+      padding: 0 12px;
+      gap: 8px;
+      overflow-x: auto;
+    }
+    .toolbar::-webkit-scrollbar {
+      display: none;
+    }
+    .tool-group {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .tool-divider {
+      width: 1px;
+      height: 20px;
+      background: var(--dox-border);
+      margin: 0 4px;
+    }
+    .btn {
+      background: transparent;
+      border: 1px solid transparent;
+      color: var(--dox-text);
+      font-size: 12px;
+      padding: 4px 10px;
+      border-radius: 5px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      white-space: nowrap;
+      transition: all 0.12s ease;
+    }
+    .btn:hover {
+      background-color: rgba(255, 255, 255, 0.08);
+      border-color: rgba(255, 255, 255, 0.12);
+      color: #fff;
+    }
+    .btn:active {
+      transform: scale(0.97);
+    }
+    .btn-primary {
+      background: rgba(56, 189, 248, 0.15);
+      border-color: rgba(56, 189, 248, 0.35);
+      color: #7dd3fc;
+    }
+    .btn-primary:hover {
+      background: rgba(56, 189, 248, 0.25);
+      border-color: var(--dox-accent);
+      color: #fff;
+    }
+    .select-dropdown {
+      background: #17181c;
+      border: 1px solid var(--dox-border);
+      color: var(--dox-text);
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      outline: none;
+      cursor: pointer;
+    }
+
+    /* Main Container */
+    .main-layout {
+      flex: 1;
+      display: flex;
+      overflow: hidden;
+    }
+
+    /* Left Sidebar: Outline & Info */
+    .sidebar {
+      width: 220px;
+      background-color: var(--dox-sidebar);
+      border-right: 1px solid var(--dox-border);
+      display: flex;
+      flex-direction: column;
+      padding: 14px 12px;
+      gap: 16px;
+      overflow-y: auto;
+      flex-shrink: 0;
+    }
+    .sidebar-section-title {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--dox-dim);
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+    .meta-row {
+      font-size: 11.5px;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      margin-bottom: 8px;
+    }
+    .meta-key {
+      color: var(--dox-dim);
+    }
+    .meta-val {
+      color: #fff;
+      word-break: break-all;
+    }
+    .toc-item {
+      font-size: 12px;
+      padding: 4px 8px;
+      border-radius: 4px;
+      color: var(--dox-dim);
+      cursor: pointer;
+      transition: background 0.1s;
+    }
+    .toc-item:hover {
+      background: rgba(255, 255, 255, 0.08);
+      color: #fff;
+    }
+
+    /* Viewport Area */
+    .viewport {
+      flex: 1;
+      background-color: var(--dox-bg);
+      overflow-y: auto;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      position: relative;
+    }
+
+    /* Document Sheet (Paper container) */
+    .document-sheet {
+      background-color: var(--paper-bg);
+      color: var(--paper-text);
+      width: 100%;
+      max-width: 780px;
+      min-height: 980px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+      border-radius: 4px;
+      padding: 50px 60px;
+      line-height: 1.6;
+      font-size: 14px;
+      user-select: text;
+      transition: transform 0.15s ease;
+      display: none;
+    }
+    .document-sheet.active {
+      display: block;
+    }
+
+    /* Embedded PDF Frame */
+    .pdf-container {
+      width: 100%;
+      height: 100%;
+      display: none;
+      border: none;
+    }
+    .pdf-container.active {
+      display: block;
+    }
+    .pdf-embed {
+      width: 100%;
+      height: 100%;
+      border: none;
+      background: #2b2b2b;
+    }
+
+    /* Unsupported Format Card */
+    .unsupported-card {
+      max-width: 580px;
+      width: 100%;
+      background: #21232a;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 10px;
+      padding: 32px;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+      margin-top: 40px;
+    }
+    .unsupported-card.active {
+      display: flex;
+    }
+    .format-badge {
+      background: rgba(244, 63, 94, 0.18);
+      border: 1px solid rgba(244, 63, 94, 0.4);
+      color: #fb7185;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 4px 14px;
+      border-radius: 20px;
+      margin-bottom: 16px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    .unsupported-title {
+      font-size: 20px;
+      font-weight: 600;
+      color: #fff;
+      margin-bottom: 10px;
+    }
+    .unsupported-desc {
+      font-size: 13.5px;
+      color: var(--dox-dim);
+      line-height: 1.6;
+      margin-bottom: 20px;
+    }
+    .unsupported-actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .hex-dump-box {
+      width: 100%;
+      background: #141519;
+      border: 1px solid var(--dox-border);
+      border-radius: 6px;
+      padding: 10px;
+      font-family: monospace;
+      font-size: 11px;
+      color: #94a3b8;
+      text-align: left;
+      white-space: pre;
+      overflow-x: auto;
+      margin-top: 16px;
+      display: none;
+    }
+
+    /* Typography in Rendered Docs */
+    .document-sheet h1 {
+      font-size: 24px;
+      font-weight: 700;
+      margin-bottom: 16px;
+      border-bottom: 2px solid rgba(0, 0, 0, 0.1);
+      padding-bottom: 8px;
+    }
+    .document-sheet h2 {
+      font-size: 18px;
+      font-weight: 600;
+      margin: 20px 0 10px 0;
+    }
+    .document-sheet h3, .document-sheet h4, .document-sheet h5, .document-sheet h6 {
+      margin: 16px 0 8px;
+    }
+    .document-sheet p {
+      margin-bottom: 14px;
+    }
+    .document-sheet ul, .document-sheet ol {
+      margin-left: 24px;
+      margin-bottom: 14px;
+    }
+    .document-sheet li {
+      margin-bottom: 4px;
+    }
+    .document-sheet pre {
+      background: rgba(0, 0, 0, 0.08);
+      padding: 12px;
+      border-radius: 6px;
+      font-family: monospace;
+      font-size: 12px;
+      margin-bottom: 14px;
+      overflow-x: auto;
+    }
+    .document-sheet code {
+      font-family: monospace;
+      overflow-wrap: anywhere;
+    }
+    .document-sheet table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 14px;
+    }
+    .document-sheet th, .document-sheet td {
+      border: 1px solid rgba(0, 0, 0, 0.16);
+      padding: 6px 8px;
+    }
+    .document-sheet img {
+      max-width: 100%;
+      height: auto;
+    }
+    .document-sheet a {
+      color: #0369a1;
+      text-decoration: underline;
+    }
+    .document-sheet blockquote {
+      border-left: 4px solid var(--dox-accent);
+      padding-left: 14px;
+      color: #64748b;
+      margin-bottom: 14px;
+      font-style: italic;
+    }
+    .badge-callout {
+      background: rgba(56, 189, 248, 0.1);
+      border-left: 4px solid #38bdf8;
+      padding: 10px 14px;
+      border-radius: 0 4px 4px 0;
+      font-size: 12.5px;
+      margin-bottom: 16px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Toolbar -->
+  <div class="toolbar">
+    <div class="tool-group">
+      <button class="btn btn-primary" id="btn-open-doc">📂 Open Document</button>
+      <input type="file" id="file-upload" style="display: none;">
+      <select class="select-dropdown" id="sample-select">
+        <option value="pdf">📕 Sample: PDF Document</option>
+        <option value="markdown">📝 Sample: Markdown Manual</option>
+        <option value="rtf">📄 Sample: RTF Rich Text</option>
+        <option value="doc">📦 Sample: Word/ODT Document</option>
+        <option value="unsupported">🛑 Sample: Unsupported Binary</option>
+      </select>
+    </div>
+
+    <div class="tool-divider"></div>
+
+    <div class="tool-group">
+      <button class="btn" id="btn-zoom-out">🔍 -</button>
+      <span style="font-size: 11.5px; color: var(--dox-dim); min-width: 40px; text-align: center;" id="zoom-label">100%</span>
+      <button class="btn" id="btn-zoom-in">🔍 +</button>
+      <button class="btn" id="btn-fit-width">Fit Width</button>
+    </div>
+
+    <div class="tool-divider"></div>
+
+    <div class="tool-group">
+      <select class="select-dropdown" id="theme-select">
+        <option value="light">Paper: Light</option>
+        <option value="dark">Paper: Dark</option>
+        <option value="sepia">Paper: Sepia</option>
+      </select>
+    </div>
+
+    <div style="margin-left: auto; display: flex; gap: 6px;">
+      <button class="btn" id="btn-open-scribe">Open in Scribe.run</button>
+      <button class="btn" id="btn-download">Download</button>
+    </div>
+  </div>
+
+  <!-- Main Viewport Layout -->
+  <div class="main-layout">
+    <!-- Left Sidebar -->
+    <div class="sidebar">
+      <div>
+        <div class="sidebar-section-title">Document Properties</div>
+        <div class="meta-row">
+          <span class="meta-key">File Name</span>
+          <span class="meta-val" id="meta-filename">felis-manual.pdf</span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-key">Format / Type</span>
+          <span class="meta-val" id="meta-type">application/pdf</span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-key">File Size</span>
+          <span class="meta-val" id="meta-size">14.2 KB</span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-key">Engine Status</span>
+          <span class="meta-val" style="color:#4ade80;" id="meta-status">Native Browser PDF</span>
+        </div>
+      </div>
+
+      <div class="tool-divider" style="width: 100%; height: 1px; margin: 4px 0;"></div>
+
+      <div style="flex: 1;">
+        <div class="sidebar-section-title">Outline / Headings</div>
+        <div id="outline-container">
+          <div class="toc-item">1. Introduction</div>
+          <div class="toc-item">2. Architecture</div>
+          <div class="toc-item">3. Applications</div>
+          <div class="toc-item">4. Summary</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Center Document Viewport -->
+    <div class="viewport" id="viewport">
+      <!-- 1. Native PDF Viewer View -->
+      <div class="pdf-container active" id="pdf-container">
+        <object class="pdf-embed" id="pdf-object" type="application/pdf" data="">
+          <p style="padding: 24px; color: #fff;">Your browser does not support embedded PDF objects. <a id="pdf-fallback-link" href="#" style="color:#38bdf8;">Download PDF</a></p>
+        </object>
+      </div>
+
+      <!-- 2. Formatted Paper Sheet View -->
+      <div class="document-sheet" id="document-sheet">
+        <!-- Content injected dynamically -->
+      </div>
+
+      <!-- 3. Unsupported Format Card View -->
+      <div class="unsupported-card" id="unsupported-card">
+        <div class="format-badge" id="unsupported-ext">.BIN / RAW</div>
+        <h2 class="unsupported-title">Document Preview Unavailable</h2>
+        <p class="unsupported-desc">
+          KneadyDox currently does not have a rendered preview pipeline for this document type.
+          Full WYSIWYG parsing, layout calculation, and editing are planned in a future FelisOS update.
+        </p>
+        <div class="unsupported-actions">
+          <button class="btn btn-primary" id="btn-show-hex">View Raw Hex Dump</button>
+          <button class="btn" id="btn-unsupported-scribe">Open in Scribe.run</button>
+          <button class="btn" id="btn-unsupported-download">Export File</button>
+        </div>
+        <div class="hex-dump-box" id="hex-dump-box"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="../js/vfs.js"></script>
+  <script src="../js/app-registry.js"></script>
+  <script src="../js/markdown-renderer.js"></script>
+  <script>
+    (function () {
+      'use strict';
+
+      function getSafeParent() {
+        try {
+          if (window.parent && window.parent !== window && window.parent.document) {
+            return window.parent;
+          }
+        } catch (_) {}
+        return null;
+      }
+
+      const getWindowManager = () => {
+        const p = getSafeParent();
+        return (p && p.FelisOSWindowManager) ? p.FelisOSWindowManager : window.FelisOSWindowManager;
+      };
+      const getVfs = () => {
+        const p = getSafeParent();
+        return (p && p.FelisOSVFS) ? p.FelisOSVFS : window.FelisOSVFS;
+      };
+
+      // Elements
+      const sampleSelect = document.getElementById('sample-select');
+      const themeSelect = document.getElementById('theme-select');
+      const btnOpenDoc = document.getElementById('btn-open-doc');
+      const fileUpload = document.getElementById('file-upload');
+      const btnZoomIn = document.getElementById('btn-zoom-in');
+      const btnZoomOut = document.getElementById('btn-zoom-out');
+      const btnFitWidth = document.getElementById('btn-fit-width');
+      const zoomLabel = document.getElementById('zoom-label');
+      const btnOpenScribe = document.getElementById('btn-open-scribe');
+      const btnDownload = document.getElementById('btn-download');
+
+      const metaFilename = document.getElementById('meta-filename');
+      const metaType = document.getElementById('meta-type');
+      const metaSize = document.getElementById('meta-size');
+      const metaStatus = document.getElementById('meta-status');
+      const outlineContainer = document.getElementById('outline-container');
+
+      const pdfContainer = document.getElementById('pdf-container');
+      const pdfObject = document.getElementById('pdf-object');
+      const pdfFallbackLink = document.getElementById('pdf-fallback-link');
+      const documentSheet = document.getElementById('document-sheet');
+      const unsupportedCard = document.getElementById('unsupported-card');
+      const unsupportedExt = document.getElementById('unsupported-ext');
+      const hexDumpBox = document.getElementById('hex-dump-box');
+      const btnShowHex = document.getElementById('btn-show-hex');
+
+      let currentZoom = 1.0;
+      let activeDocData = { name: '', type: '', content: '', path: null };
+
+      // Generate a valid demonstration PDF binary
+      function generateDemoPdf() {
+        const text = 'Welcome to FelisOS KneadyDox! Native browser PDF rendering foundation active.';
+        const pdfContent = `%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+5 0 obj
+<< /Length 195 >>
+stream
+BT
+/F1 22 Tf
+50 720 Td
+(FelisOS KneadyDox Document Engine) Tj
+/F1 12 Tf
+0 -30 Td
+(PDF Foundation Document - Rendered via Browser PDF Pipeline) Tj
+0 -20 Td
+(${text}) Tj
+0 -30 Td
+(Date: September 2026 | Environment: FelisOS Desktop v1.0) Tj
+ET
+endstream
+endobj
+xref
+0 6
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+0000000236 00000 n 
+0000000305 00000 n 
+trailer
+<< /Size 6 /Root 1 0 R >>
+startxref
+553
+%%EOF`;
+        return new Blob([pdfContent], { type: 'application/pdf' });
+      }
+
+      function showPdf(blob, name = 'felis-guide.pdf') {
+        hideAllViewports();
+        pdfContainer.classList.add('active');
+        const url = URL.createObjectURL(blob);
+        pdfObject.data = url;
+        pdfFallbackLink.href = url;
+
+        metaFilename.textContent = name;
+        metaType.textContent = 'application/pdf';
+        metaSize.textContent = `${(blob.size / 1024).toFixed(1)} KB`;
+        metaStatus.textContent = 'Native Browser PDF';
+        metaStatus.style.color = '#4ade80';
+
+        outlineContainer.innerHTML = `
+          <div class="toc-item">Page 1: Title & Overview</div>
+          <div class="toc-item">Page 1: FelisOS System Spec</div>
+        `;
+
+        activeDocData = { name, type: 'application/pdf', blob, path: null };
+      }
+
+      function showFormattedSheet(htmlContent, meta, sourceContent = htmlContent, path = null) {
+        hideAllViewports();
+        documentSheet.classList.add('active');
+        documentSheet.innerHTML = htmlContent;
+
+        metaFilename.textContent = meta.name;
+        metaType.textContent = meta.type;
+        metaSize.textContent = meta.size;
+        metaStatus.textContent = meta.status;
+        metaStatus.style.color = '#38bdf8';
+
+        // Extract headings for outline
+        const headings = documentSheet.querySelectorAll('h1, h2, h3');
+        outlineContainer.innerHTML = '';
+        if (!headings.length) {
+          outlineContainer.innerHTML = '<div class="toc-item" style="color:#6b7280;">No headings found</div>';
+        } else {
+          headings.forEach((h, i) => {
+            const item = document.createElement('div');
+            item.className = 'toc-item';
+            item.textContent = `${i + 1}. ${h.textContent}`;
+            item.addEventListener('click', () => {
+              h.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            });
+            outlineContainer.appendChild(item);
+          });
+        }
+
+        activeDocData = { name: meta.name, type: meta.type, content: sourceContent, path };
+      }
+
+      function showUnsupported(name, ext, size, bytes) {
+        hideAllViewports();
+        unsupportedCard.classList.add('active');
+        unsupportedExt.textContent = ext.toUpperCase() || 'BINARY';
+
+        metaFilename.textContent = name;
+        metaType.textContent = 'application/octet-stream';
+        metaSize.textContent = size;
+        metaStatus.textContent = 'Parser Not Available';
+        metaStatus.style.color = '#fb7185';
+
+        outlineContainer.innerHTML = '<div class="toc-item" style="color:#6b7280;">Unavailable for raw format</div>';
+
+        // Generate hex dump
+        let dump = '';
+        const sampleBytes = bytes || [0x7f, 0x45, 0x4c, 0x46, 0x02, 0x01, 0x01, 0x00, 0x00, 0x12, 0xa4, 0x6e, 0x88, 0x90, 0xff, 0x00];
+        for (let i = 0; i < sampleBytes.length; i += 8) {
+          const chunk = sampleBytes.slice(i, i + 8);
+          const hex = Array.from(chunk).map(b => b.toString(16).padStart(2, '0')).join(' ');
+          const ascii = Array.from(chunk).map(b => (b >= 32 && b <= 126 ? String.fromCharCode(b) : '.')).join('');
+          dump += `${i.toString(16).padStart(4, '0')}  ${hex.padEnd(24, ' ')}  |${ascii}|\n`;
+        }
+        hexDumpBox.textContent = dump;
+        hexDumpBox.style.display = 'none';
+
+        activeDocData = { name, type: 'application/octet-stream', content: dump, path: null };
+      }
+
+      function hideAllViewports() {
+        pdfContainer.classList.remove('active');
+        documentSheet.classList.remove('active');
+        unsupportedCard.classList.remove('active');
+      }
+
+      function getTextDocumentPayload() {
+        const name = activeDocData && activeDocData.name ? String(activeDocData.name) : 'document.txt';
+        const type = activeDocData && activeDocData.type ? String(activeDocData.type) : 'text/plain';
+        const text = activeDocData && typeof activeDocData.content === 'string' ? activeDocData.content : '';
+        const lower = name.toLowerCase();
+        const docType = /\.(md|txt|rtf|json|csv|log|js|css|html|xml)$/i.test(lower) || /text\//.test(type) || /markdown|rtf/.test(type)
+          ? type
+          : 'text/plain';
+        return { name, type: docType, content: text };
+      }
+
+      function openDocumentInScribe(payload) {
+        const wm = getWindowManager();
+        if (!wm || typeof wm.openDocument !== 'function') {
+          alert('Scribe.run is unavailable.');
+          return;
+        }
+        try {
+          const opened = wm.openDocument('scribe', {
+            ...payload,
+            path: activeDocData.path,
+          });
+          if (opened !== true) alert('Scribe.run is still starting. Try again shortly.');
+        } catch (error) {
+          alert(`Unable to open this document in Scribe: ${error.message}`);
+        }
+      }
+
+      // Sample Loaders
+      function loadSample(key) {
+        if (key === 'pdf') {
+          const blob = generateDemoPdf();
+          showPdf(blob, 'felis-manual.pdf');
+        } else if (key === 'markdown') {
+          const markdown = `# FelisOS Architecture Guide
+
+FelisOS is a modern, modular web desktop built with pure web technologies. It features responsive window management, an IndexedDB-backed Virtual Filesystem, and an extensible application runtime.
+
+## Core Applications
+
+- **Browser.run:** Miniature browser shell with tabs, history, and offline games.
+- **Scribe.run:** Plain-text editor with autosave, crash recovery, and UTF-8 safe encoding.
+- **Kit.nCmd.run:** Unix-like terminal shell with VFS file manipulation commands.
+- **KneadyDox.run:** Unified document foundation supporting PDF, formatted text, and document parsers.
+- **System Preferences.run:** FelisOS settings panel for themes, dock, motion, and storage.
+
+## System Principles
+
+> "Fast, tactile, resilient, and beautiful computing inside the browser."
+
+Every window features 8-directional resizing, edge-snapping, and persistent state across sessions.
+`;
+          showFormattedSheet(window.FelisOSMarkdown.render(markdown), {
+            name: 'architecture-guide.md',
+            type: 'text/markdown',
+            size: '2.4 KB',
+            status: 'Formatted Text / Markdown',
+          }, markdown);
+        } else if (key === 'rtf') {
+          const rtfHtml = `
+            <div class="badge-callout"><strong>RTF Integration Point</strong> — Parsed Rich Text Format (RTF 1.5)</div>
+            <h1>Project Milestone Report</h1>
+            <p style="color: #4f46e5; font-weight: bold;">Confidential — Internal Distribution Only</p>
+            <p>This document demonstrates <em>KneadyDox's Rich Text (RTF) parser bridge</em>. Font attributes, paragraph separation, and stylized text are rendered into the reader sheet.</p>
+            <h2>Milestone Deliverables</h2>
+            <ol>
+              <li>Window management with 8-directional resizing and tile snapping</li>
+              <li>Virtual Filesystem with user quota and IndexedDB persistence</li>
+              <li>Full default application suite (.run registered)</li>
+            </ol>
+            <p>Status: <span style="color: #16a34a; font-weight: bold;">ALL MILESTONES COMPLETE</span></p>
+          `;
+          showFormattedSheet(rtfHtml, {
+            name: 'milestone-report.rtf',
+            type: 'application/rtf',
+            size: '4.8 KB',
+            status: 'RTF Parser Active',
+          });
+        } else if (key === 'doc') {
+          const docHtml = `
+            <div class="badge-callout"><strong>ODT / DOC Parser Integration Point</strong> — OpenDocument & Word Inspection Bridge</div>
+            <h1>Quarterly Operating Specification</h1>
+            <p><strong>Author:</strong> FelisOS Engineering Team &nbsp;|&nbsp; <strong>Revision:</strong> 1.4.2</p>
+            <hr style="margin: 16px 0; border: 0; border-top: 1px solid rgba(0,0,0,0.1);">
+            <h2>Summary of Operations</h2>
+            <p>The document foundation provides standard integration entry points for XML-based document structures (such as .docx / .odt packages). Headers, body paragraphs, tables, and document summaries are extracted safely.</p>
+            <pre>Document Signature: 0x50 0x4B 0x03 0x04 (ZIP Archive / OpenDocument)
+Metadata: application/vnd.oasis.opendocument.text
+Page Count: 3 pages (estimated)
+Character Count: 4,120</pre>
+            <p>When full AST editing is required, users can export or transition to dedicated editor components.</p>
+          `;
+          showFormattedSheet(docHtml, {
+            name: 'operating-spec.docx',
+            type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            size: '28.6 KB',
+            status: 'ODT/DOC Bridge Active',
+          });
+        } else if (key === 'unsupported') {
+          showUnsupported('firmware-dump.bin', '.bin', '128.0 KB');
+        }
+      }
+
+      // Event Listeners
+      sampleSelect.addEventListener('change', e => loadSample(e.target.value));
+
+      themeSelect.addEventListener('change', e => {
+        document.body.classList.remove('theme-dark', 'theme-sepia');
+        if (e.target.value === 'dark') document.body.classList.add('theme-dark');
+        if (e.target.value === 'sepia') document.body.classList.add('theme-sepia');
+      });
+
+      btnZoomIn.addEventListener('click', () => {
+        currentZoom = Math.min(2.0, currentZoom + 0.15);
+        applyZoom();
+      });
+
+      btnZoomOut.addEventListener('click', () => {
+        currentZoom = Math.max(0.6, currentZoom - 0.15);
+        applyZoom();
+      });
+
+      btnFitWidth.addEventListener('click', () => {
+        currentZoom = 1.0;
+        applyZoom();
+      });
+
+      function applyZoom() {
+        zoomLabel.textContent = `${Math.round(currentZoom * 100)}%`;
+        documentSheet.style.transform = `scale(${currentZoom})`;
+        documentSheet.style.transformOrigin = 'top center';
+      }
+
+      btnOpenDoc.addEventListener('click', () => fileUpload.click());
+
+      fileUpload.addEventListener('change', e => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const name = file.name;
+        const ext = name.includes('.') ? name.split('.').pop().toLowerCase() : '';
+
+        if (ext === 'pdf') {
+          showPdf(file, name);
+        } else if (ext === 'md') {
+          const reader = new FileReader();
+          reader.onload = ev => {
+            const content = String(ev.target.result || '');
+            showFormattedSheet(window.FelisOSMarkdown.render(content), {
+              name,
+              type: 'text/markdown',
+              size: `${(file.size / 1024).toFixed(1)} KB`,
+              status: 'Rendered Markdown',
+            }, content);
+          };
+          reader.readAsText(file, 'UTF-8');
+        } else if (['txt', 'json', 'log', 'csv', 'js', 'html', 'css'].includes(ext)) {
+          const reader = new FileReader();
+          reader.onload = ev => {
+            const raw = String(ev.target.result || '');
+            const formatted = `<h1>${escapeHtml(name)}</h1><pre>${escapeHtml(raw)}</pre>`;
+            showFormattedSheet(formatted, {
+              name,
+              type: file.type || 'text/plain',
+              size: `${(file.size / 1024).toFixed(1)} KB`,
+              status: 'Plain Text Stream',
+            }, raw);
+          };
+          reader.readAsText(file);
+        } else if (ext === 'rtf') {
+          const reader = new FileReader();
+          reader.onload = ev => {
+            const text = String(ev.target.result || '');
+            // Clean RTF stripping for basic display
+            const stripped = text.replace(/\\par/g, '\n').replace(/\\[a-z0-9]+/g, '').replace(/[{}]/g, '');
+            showFormattedSheet(`<h1>${escapeHtml(name)}</h1><p>${escapeHtml(stripped).replace(/\n/g, '<br>')}</p>`, {
+              name,
+              type: 'application/rtf',
+              size: `${(file.size / 1024).toFixed(1)} KB`,
+              status: 'RTF Stream',
+            }, text);
+          };
+          reader.readAsText(file);
+        } else if (['docx', 'doc', 'odt'].includes(ext)) {
+          const reader = new FileReader();
+          reader.onload = ev => {
+            const docHtml = `
+              <div class="badge-callout">Document Package: ${name}</div>
+              <h1>${name}</h1>
+              <p>Detected document format: <strong>.${ext}</strong></p>
+              <pre>File size: ${file.size} bytes
+Status: Ready for parser pipeline
+Last Modified: ${new Date(file.lastModified).toISOString()}</pre>
+            `;
+            showFormattedSheet(docHtml, {
+              name,
+              type: file.type || 'application/msword',
+              size: `${(file.size / 1024).toFixed(1)} KB`,
+              status: 'Document Package Loaded',
+            });
+          };
+          reader.readAsArrayBuffer(file);
+        } else {
+          // Unsupported format path
+          const reader = new FileReader();
+          reader.onload = ev => {
+            const uint = new Uint8Array(ev.target.result).slice(0, 32);
+            showUnsupported(name, `.${ext}`, `${(file.size / 1024).toFixed(1)} KB`, uint);
+          };
+          reader.readAsArrayBuffer(file);
+        }
+      });
+
+      btnShowHex.addEventListener('click', () => {
+        hexDumpBox.style.display = hexDumpBox.style.display === 'block' ? 'none' : 'block';
+      });
+
+      btnOpenScribe.addEventListener('click', () => {
+        const { name, type, content } = getTextDocumentPayload();
+        const isTextDoc = /\.(md|txt|rtf|json|csv|log|js|css|html|xml)$/i.test(name) || /text\//i.test(type) || /markdown|rtf/i.test(type);
+        if (isTextDoc) {
+          openDocumentInScribe({ name, type, content });
+          return;
+        }
+
+        const wm = getWindowManager();
+        if (wm && wm.launch) {
+          wm.launch('scribe');
+        } else {
+          alert('Launch Scribe.run requested');
+        }
+      });
+
+      document.getElementById('btn-unsupported-scribe').addEventListener('click', () => {
+        btnOpenScribe.click();
+      });
+
+      btnDownload.addEventListener('click', () => {
+        if (activeDocData.blob) {
+          const a = document.createElement('a');
+          a.href = URL.createObjectURL(activeDocData.blob);
+          a.download = activeDocData.name || 'document.pdf';
+          a.click();
+        } else {
+          const blob = new Blob([activeDocData.content || ''], { type: activeDocData.type || 'text/plain' });
+          const a = document.createElement('a');
+          a.href = URL.createObjectURL(blob);
+          a.download = activeDocData.name || 'document.txt';
+          a.click();
+        }
+      });
+
+      document.getElementById('btn-unsupported-download').addEventListener('click', () => {
+        btnDownload.click();
+      });
+
+      function escapeHtml(str) {
+        return String(str || '')
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;');
+      }
+
+      window.addEventListener('message', async event => {
+        if (event.source !== window.parent || event.origin !== window.location.origin) return;
+        if (event.data?.type !== 'felisos:open-document') return;
+        const documentData = event.data.document || {};
+        try {
+          const vfs = getVfs();
+          if (!documentData.path || !vfs) throw new Error('The VDisk document is unavailable.');
+          const content = await vfs.readFile(documentData.path);
+          showFormattedSheet(window.FelisOSMarkdown.render(content), {
+            name: documentData.name || documentData.path.split('/').pop(),
+            type: 'text/markdown',
+            size: `${new Blob([content]).size.toLocaleString()} bytes`,
+            status: 'Rendered Markdown',
+          }, content, documentData.path);
+        } catch (error) {
+          alert(`Unable to preview Markdown: ${error.message}`);
+        }
+      });
+
+      // Initial load: PDF sample
+      loadSample('pdf');
+    })();
+  </script>
+</body>
+</html>

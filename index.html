@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#2e2f31">
+  <meta name="description" content="FelisOS web desktop">
+  <title>FelisOS Prototype</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+  <!-- 2. DESKTOP WORKSPACE LAYER -->
+  <main id="desktop-container">
+    
+    <!-- 1. Browser.run Application Window -->
+    <div class="ui-window" id="win-1" style="top: 70px; left: 140px; width: 780px; height: 520px;">
+      <div class="window-titlebar">
+        <div class="window-title">Chrome WebView</div>
+        <div class="window-controls">
+          <button class="icon-btn action-minimize" title="Minimize">
+            <img src="assets/hide.svg" alt="Minimize" draggable="false">
+          </button>
+          <button class="icon-btn action-maximize" title="Maximize">
+            <img src="assets/maximize.svg" alt="Maximize" draggable="false">
+          </button>
+          <button class="icon-btn action-close" title="Close">
+            <img src="assets/close.svg" alt="Close" draggable="false">
+          </button>
+        </div>
+      </div>
+      <div class="window-body app-window-body">
+        <iframe class="app-iframe" src="apps/browser.html" title="Browser"></iframe>
+      </div>
+      <div class="window-resizer"></div>
+    </div>
+
+    <!-- 2. Scribe.run Application Window -->
+    <div class="ui-window" id="win-2" style="top: 90px; left: 200px; width: 800px; height: 500px;">
+      <div class="window-titlebar">
+        <div class="window-title">Scribe</div>
+        <div class="window-controls">
+          <button class="icon-btn action-minimize" title="Minimize">
+            <img src="assets/hide.svg" alt="Minimize" draggable="false">
+          </button>
+          <button class="icon-btn action-maximize" title="Maximize">
+            <img src="assets/maximize.svg" alt="Maximize" draggable="false">
+          </button>
+          <button class="icon-btn action-close" title="Close">
+            <img src="assets/close.svg" alt="Close" draggable="false">
+          </button>
+        </div>
+      </div>
+      <div class="window-body app-window-body">
+        <iframe class="app-iframe" src="apps/scribe.html" title="Scribe"></iframe>
+      </div>
+      <div class="window-resizer"></div>
+    </div>
+
+    <!-- 3. Kit.nCmd.run Application Window -->
+    <div class="ui-window" id="win-3" style="top: 110px; left: 240px; width: 660px; height: 440px;">
+      <div class="window-titlebar">
+        <div class="window-title">Kit.nCmd</div>
+        <div class="window-controls">
+          <button class="icon-btn action-minimize" title="Minimize">
+            <img src="assets/hide.svg" alt="Minimize" draggable="false">
+          </button>
+          <button class="icon-btn action-maximize" title="Maximize">
+            <img src="assets/maximize.svg" alt="Maximize" draggable="false">
+          </button>
+          <button class="icon-btn action-close" title="Close">
+            <img src="assets/close.svg" alt="Close" draggable="false">
+          </button>
+        </div>
+      </div>
+      <div class="window-body app-window-body">
+        <iframe class="app-iframe" src="apps/kit-ncmd.html" title="Kit.nCmd"></iframe>
+      </div>
+      <div class="window-resizer"></div>
+    </div>
+
+    <!-- 4. KneadyDox.run Application Window -->
+    <div class="ui-window" id="win-4" style="top: 80px; left: 180px; width: 780px; height: 530px;">
+      <div class="window-titlebar">
+        <div class="window-title">KneadyDox</div>
+        <div class="window-controls">
+          <button class="icon-btn action-minimize" title="Minimize">
+            <img src="assets/hide.svg" alt="Minimize" draggable="false">
+          </button>
+          <button class="icon-btn action-maximize" title="Maximize">
+            <img src="assets/maximize.svg" alt="Maximize" draggable="false">
+          </button>
+          <button class="icon-btn action-close" title="Close">
+            <img src="assets/close.svg" alt="Close" draggable="false">
+          </button>
+        </div>
+      </div>
+      <div class="window-body app-window-body">
+        <iframe class="app-iframe" src="apps/kneadydox.html" title="KneadyDox"></iframe>
+      </div>
+      <div class="window-resizer"></div>
+    </div>
+
+    <!-- 5. System Preferences.run Application Window -->
+    <div class="ui-window" id="win-5" style="top: 100px; left: 220px; width: 900px; height: 490px;">
+      <div class="window-titlebar">
+        <div class="window-title">System Preferences</div>
+        <div class="window-controls">
+          <button class="icon-btn action-minimize" title="Minimize">
+            <img src="assets/hide.svg" alt="Minimize" draggable="false">
+          </button>
+          <button class="icon-btn action-maximize" title="Maximize">
+            <img src="assets/maximize.svg" alt="Maximize" draggable="false">
+          </button>
+          <button class="icon-btn action-close" title="Close">
+            <img src="assets/close.svg" alt="Close" draggable="false">
+          </button>
+        </div>
+      </div>
+      <div class="window-body app-window-body">
+        <iframe class="app-iframe" src="apps/settings.html" title="System Preferences"></iframe>
+      </div>
+      <div class="window-resizer"></div>
+    </div>
+
+    <div class="ui-window" id="storage-window" style="top: 120px; left: 260px; width: 600px; height: 400px;">
+      <div class="window-titlebar">
+        <div class="window-title">VDisk (Local)</div>
+        <div class="window-controls">
+          <button class="icon-btn action-minimize" title="Minimize">
+            <img src="assets/hide.svg" alt="Minimize" draggable="false">
+          </button>
+          <button class="icon-btn action-maximize" title="Maximize">
+            <img src="assets/maximize.svg" alt="Maximize" draggable="false">
+          </button>
+          <button class="icon-btn action-close" title="Close">
+            <img src="assets/close.svg" alt="Close" draggable="false">
+          </button>
+        </div>
+      </div>
+      <div class="window-body storage-body">
+        <div class="storage-toolbar">
+          <button class="storage-nav-btn" type="button" data-storage-up aria-label="Go up">↑</button>
+          <div class="storage-breadcrumb" data-storage-path>/vdisk/local/usr/home</div>
+          <button class="storage-nav-btn" type="button" data-storage-new>+</button>
+          <button class="storage-nav-btn" type="button" data-storage-delete>×</button>
+        </div>
+        <div class="storage-list" data-storage-list role="list" aria-label="Virtual folders"></div>
+        <p class="component-status" data-storage-status role="status" aria-live="polite"></p>
+      </div>
+    </div>
+
+    <!-- Desktop Shortcuts Column -->
+    <div class="desktop-shortcut" data-target="storage-window" style="top: 36px; left: 24px;" tabindex="0" role="button" aria-label="Storage @ Local">
+       <img src="assets/icons/vdisk.svg" alt="Storage">
+      <span class="desktop-shortcut-label">Storage</span>
+    </div>
+
+    <div class="desktop-shortcut" data-target="win-1" style="top: 130px; left: 24px;" tabindex="0" role="button" aria-label="Browser">
+      <img src="assets/icons/chromium-64x64.svg" alt="Browser">
+      <span class="desktop-shortcut-label">Chrome WebView</span>
+    </div>
+
+    <div class="desktop-shortcut" data-target="win-2" style="top: 224px; left: 24px;" tabindex="0" role="button" aria-label="Scribe">
+      <img src="assets/icons/scribe.svg" alt="Scribe">
+      <span class="desktop-shortcut-label">Scribe</span>
+    </div>
+
+    <div class="desktop-shortcut" data-target="win-3" style="top: 318px; left: 24px;" tabindex="0" role="button" aria-label="Kit.nCmd">
+      <img src="assets/icons/terminal-main.svg" alt="Kit.nCmd">
+      <span class="desktop-shortcut-label">Kit.nCmd</span>
+    </div>
+
+    <div class="desktop-shortcut" data-target="win-4" style="top: 412px; left: 24px;" tabindex="0" role="button" aria-label="KneadyDox">
+      <img src="assets/icons/appscore.svg" alt="Docs">
+      <span class="desktop-shortcut-label">KneadyDox</span>
+    </div>
+
+    <div class="desktop-shortcut" data-target="win-5" style="top: 506px; left: 24px;" tabindex="0" role="button" aria-label="Preferences">
+      <img src="assets/icons/system-config.svg" alt="Preferences">
+      <span class="desktop-shortcut-label">Preferences</span>
+    </div>
+
+    <!-- Snapping Ghost Overlay -->
+    <div class="felis-snap-ghost" id="snap-ghost" aria-hidden="true"></div>
+  </main>
+	
+  <!-- 3. ENVIRONMENT DOCK NAVIGATION INTERFACE -->
+  <div class="dock-container">
+    <nav class="mac-dock">
+      <div class="dock-item has-window is-active" data-target="win-1" role="button" tabindex="0" title="TBrowser.run">
+        <img src="assets/icons/chromium-64x64.svg" alt="Browser.run">
+      </div>
+      <div class="dock-item has-window is-closed" data-target="win-2" role="button" tabindex="0" title="Scribe.run">
+        <img src="assets/icons/scribe.svg" alt="Scribe.run">
+      </div>
+      <div class="dock-item has-window is-closed" data-target="win-3" role="button" tabindex="0" title="Kit.nCmd.run">
+        <img src="assets/icons/terminal-main.svg" alt="Kit.nCmd.run">
+      </div>
+      <div class="dock-item has-window is-closed" data-target="win-4" role="button" tabindex="0" title="KneadyDox.run">
+        <img src="assets/icons/appscore.svg" alt="KneadyDox.run">
+      </div>
+      <div class="dock-item has-window is-closed" data-target="win-5" role="button" tabindex="0" title="System Preferences">
+        <img src="assets/icons/system-config.svg" alt="System Preferences.run">
+      </div>
+      <div class="dock-item has-window is-closed" data-target="storage-window" role="button" tabindex="0" title="VDisk@Local">
+        <img src="assets/icons/folder-storage.svg" alt="VDisk">
+      </div>
+    </nav>
+  </div>
+
+  <nav class="felis-context-menu is-hidden" data-context-menu aria-label="Context menu">
+    <button type="button" data-context-action="rename">Rename</button>
+    <button type="button" data-context-action="delete">Delete</button>
+  </nav>
+
+  <dialog class="dialog-box" id="file-save-dialog" aria-labelledby="file-save-title">
+    <form method="dialog" class="dialog-card">
+      <h2 id="file-save-title">Save file</h2>
+      <label class="control-label" for="file-name">File name</label>
+      <input class="text-input" id="file-name" value="untitled.txt" />
+      <div class="dialog-actions">
+        <button class="secondary-btn svg-button modal-button" data-svg-button data-button-state="default" value="cancel"><span>Cancel</span></button>
+        <button class="primary-btn svg-button modal-button" data-svg-button data-button-state="default" value="save"><span>Save</span></button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog class="dialog-box" id="rename-dialog" aria-labelledby="rename-title">
+    <form method="post" class="dialog-card" data-rename-form>
+      <h2 id="rename-title">Rename</h2>
+      <label class="control-label" for="rename-input">Name</label>
+      <input class="text-input" id="rename-input" name="name" autocomplete="off" required>
+      <p class="component-status" data-rename-status role="status" aria-live="polite"></p>
+      <div class="dialog-actions">
+        <button type="button" class="secondary-btn svg-button modal-button" data-svg-button data-button-state="default" value="cancel"><span>Cancel</span></button>
+        <button type="submit" class="primary-btn svg-button modal-button" data-svg-button data-button-state="default" value="rename"><span>Rename</span></button>
+      </div>
+    </form>
+  </dialog>
+
+  <div class="system-modal is-hidden" id="warning-modal" role="alertdialog" aria-modal="true" aria-labelledby="warning-title" aria-describedby="warning-message">
+    <div class="modal-backdrop" data-modal-close></div>
+    <section class="modal-card" role="document">
+      <span class="modal-icon modal-icon-warning" aria-hidden="true">!</span>
+      <h2 id="warning-title">Unsaved changes</h2>
+      <p id="warning-message">Your changes have not been saved. Continue without saving?</p>
+      <div class="dialog-actions">
+        <button class="secondary-btn svg-button modal-button" type="button" data-svg-button data-button-state="default" data-modal-close><span>Cancel</span></button>
+        <button class="primary-btn svg-button modal-button" type="button" data-svg-button data-button-state="default" data-modal-close><span>Continue</span></button>
+      </div>
+    </section>
+  </div>
+
+  <!-- 4. FIXED WINDOW MANAGEMENT RUNTIME ENGINE -->
+  <script src="js/settings-sync.js"></script>
+  <script src="js/app-registry.js"></script>
+  <script src="js/vfs.js"></script>
+  <script src="js/ui-components.js"></script>
+  <script src="js/storage-app.js"></script>
+  <script src="js/window-manager.js"></script>
+</body>
+</html>

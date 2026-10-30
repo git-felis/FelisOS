@@ -1,0 +1,916 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kit.nCmd - Terminal</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    :root {
+      --term-bg: #0d0f12;
+      --term-fg: #d1d5db;
+      --term-prompt-user: #4ade80;
+      --term-prompt-host: #38bdf8;
+      --term-prompt-path: #facc15;
+      --term-accent: #e879f9;
+      --term-error: #f87171;
+      --term-toolbar-bg: #16181d;
+      --term-border: rgba(255, 255, 255, 0.08);
+      --font-mono: "Source Code Pro";
+    }
+
+    /* Themes */
+    body.theme-matrix {
+      --term-bg: #051408;
+      --term-fg: #4ade80;
+      --term-prompt-user: #22c55e;
+      --term-prompt-host: #86efac;
+      --term-prompt-path: #15803d;
+      --term-accent: #86efac;
+      --term-toolbar-bg: #09200f;
+    }
+    body.theme-amber {
+      --term-bg: #140d05;
+      --term-fg: #fbbf24;
+      --term-prompt-user: #f59e0b;
+      --term-prompt-host: #fcd34d;
+      --term-prompt-path: #d97706;
+      --term-accent: #fde68a;
+      --term-toolbar-bg: #22170b;
+    }
+    body.theme-cyber {
+      --term-bg: #0c0d1c;
+      --term-fg: #38bdf8;
+      --term-prompt-user: #e879f9;
+      --term-prompt-host: #a855f7;
+      --term-prompt-path: #38bdf8;
+      --term-accent: #f472b6;
+      --term-toolbar-bg: #14172e;
+    }
+
+    body {
+      background-color: var(--term-bg);
+      color: var(--term-fg);
+      font-family: var(--font-mono);
+			font-weight: 100;
+			font-style: italic;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    /* Output buffer */
+    .terminal-output {
+      flex: 1;
+      padding: 14px 16px 8px 16px;
+      overflow-y: auto;
+      overflow-x: hidden;
+      white-space: pre-wrap;
+      word-break: break-word;
+      user-select: text;
+    }
+    .terminal-output::-webkit-scrollbar {
+      width: 6px;
+    }
+    .terminal-output::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 3px;
+    }
+
+    /* Terminal Lines */
+    .term-line {
+      margin-bottom: 2px;
+    }
+    .term-banner {
+      color: var(--term-accent);
+      margin-bottom: 12px;
+      font-weight: bold;
+    }
+    .term-success {
+      color: #4ade80;
+    }
+    .term-info {
+      color: #38bdf8;
+    }
+    .term-warn {
+      color: #facc15;
+    }
+    .term-error {
+      color: var(--term-error);
+    }
+    .term-muted {
+      color: #6b7280;
+    }
+    .term-dir {
+      color: #60a5fa;
+      font-weight: 500;
+    }
+    .term-file {
+      color: #e5e7eb;
+    }
+    .term-exec {
+      color: #4ade80;
+    }
+
+    /* Prompt line */
+    .terminal-input-row {
+      display: flex;
+      align-items: center;
+      padding: 6px 16px 10px 16px;
+      background-color: var(--term-bg);
+      gap: 6px;
+    }
+    .prompt-label {
+      white-space: nowrap;
+      user-select: none;
+      font-weight: 500;
+    }
+    .prompt-user {
+      color: var(--term-prompt-user);
+    }
+    .prompt-at {
+      color: #9ca3af;
+    }
+    .prompt-host {
+      color: var(--term-prompt-host);
+    }
+    .prompt-colon {
+      color: #9ca3af;
+    }
+    .prompt-path {
+      color: var(--term-prompt-path);
+    }
+    .prompt-char {
+      color: #e5e7eb;
+      margin-left: 2px;
+    }
+
+    .terminal-input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      outline: none;
+      color: #fff;
+      font-family: var(--font-mono);
+      font-size: 13px;
+      caret-color: var(--term-accent);
+    }
+
+    /* Touch Quick-Actions Toolbar */
+    .touch-toolbar {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 8px;
+      background-color: var(--term-toolbar-bg);
+      border-top: 1px solid var(--term-border);
+      overflow-x: auto;
+      user-select: none;
+    }
+    .touch-toolbar::-webkit-scrollbar {
+      display: none;
+    }
+    .touch-btn {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: var(--term-fg);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      padding: 3px 8px;
+      border-radius: 4px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background 0.1s;
+    }
+    .touch-btn:hover {
+      background: rgba(255, 255, 255, 0.16);
+      color: #fff;
+    }
+    .touch-btn:active {
+      transform: scale(0.96);
+    }
+    .touch-btn.accent {
+      border-color: rgba(232, 121, 249, 0.4);
+      color: var(--term-accent);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Output Log Viewport -->
+  <div class="terminal-output" id="terminal-output"></div>
+
+  <!-- Interactive Input Row -->
+  <div class="terminal-input-row" id="terminal-input-row">
+    <div class="prompt-label" id="prompt-label">
+      <span class="prompt-user">kit</span><span class="prompt-at">@</span><span class="prompt-host">felis</span><span class="prompt-colon">:</span><span class="prompt-path" id="prompt-path">~</span><span class="prompt-char">$</span>
+    </div>
+    <input type="text" class="terminal-input" id="terminal-input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" autofocus>
+  </div>
+
+  <!-- Touch & Mobile Action Keys -->
+  <div class="touch-toolbar">
+    <button class="touch-btn accent" data-key="Tab">Tab ⇥</button>
+    <button class="touch-btn" data-key="ArrowUp">↑ Prev</button>
+    <button class="touch-btn" data-key="ArrowDown">↓ Next</button>
+    <button class="touch-btn" data-cmd="ls">ls</button>
+    <button class="touch-btn" data-cmd="pwd">pwd</button>
+    <button class="touch-btn" data-cmd="cd ~">cd ~</button>
+    <button class="touch-btn" data-cmd="apps">apps</button>
+    <button class="touch-btn" data-cmd="clear">clear</button>
+    <button class="touch-btn accent" data-cmd="help">help</button>
+  </div>
+
+  <script src="../js/vfs.js"></script>
+  <script src="../js/app-registry.js"></script>
+  <script>
+    (function () {
+      'use strict';
+
+      function getSafeParent() {
+        try {
+          if (window.parent && window.parent !== window && window.parent.document) {
+            return window.parent;
+          }
+        } catch (_) {}
+        return null;
+      }
+
+      // Access Virtual Filesystem from parent if inside FelisOS iframe, or local
+      const getVfs = () => {
+        const p = getSafeParent();
+        return (p && p.FelisOSVFS) ? p.FelisOSVFS : window.FelisOSVFS;
+      };
+      const getAppRegistry = () => {
+        const p = getSafeParent();
+        return (p && p.FelisOSAppRegistry) ? p.FelisOSAppRegistry : window.FelisOSAppRegistry;
+      };
+      const getWindowManager = () => {
+        const p = getSafeParent();
+        return (p && p.FelisOSWindowManager) ? p.FelisOSWindowManager : window.FelisOSWindowManager;
+      };
+
+      const vfs = getVfs();
+      const appRegistry = getAppRegistry();
+      const windowManager = getWindowManager();
+
+      // Terminal State
+      let cwd = vfs ? vfs.ROOT : '/vdisk/local/usr/home';
+      const homeDir = vfs ? vfs.ROOT : '/vdisk/local/usr/home';
+      let history = [];
+      let historyIndex = -1;
+      let temporaryInput = '';
+
+      // DOM Elements
+      const output = document.getElementById('terminal-output');
+      const input = document.getElementById('terminal-input');
+      const promptPath = document.getElementById('prompt-path');
+
+      // Command Registry Pattern for future extensions
+      class CommandRegistry {
+        constructor() {
+          this.commands = new Map();
+        }
+
+        register(spec) {
+          if (!spec || typeof spec.name !== 'string') {
+            throw new Error('Command requires a name.');
+          }
+          this.commands.set(spec.name.toLowerCase(), spec);
+          return this;
+        }
+
+        unregister(name) {
+          return this.commands.delete(name.toLowerCase());
+        }
+
+        has(name) {
+          return this.commands.has(name.toLowerCase());
+        }
+
+        get(name) {
+          return this.commands.get(name.toLowerCase());
+        }
+
+        list() {
+          return Array.from(this.commands.values());
+        }
+
+        async execute(line, context) {
+          const trimmed = line.trim();
+          if (!trimmed) return;
+
+          // Parse pipes / redirects if any
+          const tokens = parseCommandLine(trimmed);
+          const cmdName = tokens[0].toLowerCase();
+          const args = tokens.slice(1);
+
+          const cmd = this.get(cmdName);
+          if (cmd) {
+            return await cmd.execute(args, context);
+          } else {
+            context.error(`kit.ncmd: command not found: ${cmdName}. Type "help" for available commands.`);
+          }
+        }
+      }
+
+      function parseCommandLine(line) {
+        const tokens = [];
+        let current = '';
+        let inQuotes = false;
+        let quoteChar = '';
+
+        for (let i = 0; i < line.length; i++) {
+          const char = line[i];
+          if ((char === '"' || char === "'") && !inQuotes) {
+            inQuotes = true;
+            quoteChar = char;
+          } else if (char === quoteChar && inQuotes) {
+            inQuotes = false;
+            quoteChar = '';
+          } else if (char === ' ' && !inQuotes) {
+            if (current.length > 0) {
+              tokens.push(current);
+              current = '';
+            }
+          } else {
+            current += char;
+          }
+        }
+        if (current.length > 0) tokens.push(current);
+        return tokens;
+      }
+
+      const registry = new CommandRegistry();
+      // Expose globally for plugins & apps
+      window.KitnCmdRegistry = registry;
+      const safeParent = getSafeParent();
+      if (safeParent) safeParent.KitnCmdRegistry = registry;
+
+      // Terminal printing helpers
+      function print(text = '', className = '') {
+        const div = document.createElement('div');
+        div.className = `term-line ${className}`;
+        div.textContent = text;
+        output.appendChild(div);
+        scrollBottom();
+      }
+
+      function printHtml(html, className = '') {
+        const div = document.createElement('div');
+        div.className = `term-line ${className}`;
+        div.innerHTML = html;
+        output.appendChild(div);
+        scrollBottom();
+      }
+
+      function scrollBottom() {
+        output.scrollTop = output.scrollHeight;
+      }
+
+      function updatePrompt() {
+        if (cwd === homeDir) {
+          promptPath.textContent = '~';
+        } else if (cwd.startsWith(homeDir + '/')) {
+          promptPath.textContent = '~' + cwd.slice(homeDir.length);
+        } else {
+          promptPath.textContent = cwd;
+        }
+      }
+
+      function resolvePath(target) {
+        if (!target || target === '~') return homeDir;
+        if (target.startsWith('~/')) return homeDir + target.slice(1);
+        if (target.startsWith('/')) {
+          return vfs ? vfs.normalizePath(target) : target;
+        }
+        return vfs ? vfs.normalizePath(`${cwd}/${target}`) : `${cwd}/${target}`;
+      }
+
+      // Context passed to commands
+      const context = {
+        print,
+        printHtml,
+        error: (msg) => print(msg, 'term-error'),
+        warn: (msg) => print(msg, 'term-warn'),
+        success: (msg) => print(msg, 'term-success'),
+        info: (msg) => print(msg, 'term-info'),
+        getCwd: () => cwd,
+        setCwd: (next) => { cwd = next; updatePrompt(); },
+        resolvePath,
+        vfs,
+        appRegistry,
+        windowManager,
+      };
+
+      // Built-in commands registration
+      registry
+        .register({
+          name: 'help',
+          description: 'Display information about built-in commands',
+          usage: 'help [command]',
+          execute: async (args) => {
+            if (args[0]) {
+              const cmd = registry.get(args[0]);
+              if (!cmd) return context.error(`help: no help topics match "${args[0]}"`);
+              print(`Command: ${cmd.name}`, 'term-accent');
+              print(`Usage:   ${cmd.usage || cmd.name}`);
+              print(`Info:    ${cmd.description || 'No description available'}`);
+              return;
+            }
+            print('Kit.nCmd Virtual Shell - Commands List:', 'term-banner');
+            const list = registry.list();
+            list.sort((a, b) => a.name.localeCompare(b.name));
+            list.forEach(cmd => {
+              const padded = cmd.name.padEnd(12, ' ');
+              printHtml(`<span style="color:var(--term-accent);">${padded}</span> - ${cmd.description || ''}`);
+            });
+            print('\nTip: Use Arrow keys for history, Tab for auto-completion.');
+          }
+        })
+        .register({
+          name: 'clear',
+          description: 'Clear the terminal screen buffer',
+          usage: 'clear',
+          execute: async () => {
+            output.innerHTML = '';
+          }
+        })
+        .register({
+          name: 'pwd',
+          description: 'Print current working directory',
+          usage: 'pwd',
+          execute: async () => {
+            print(cwd);
+          }
+        })
+        .register({
+          name: 'cd',
+          description: 'Change the current working directory',
+          usage: 'cd [dir]',
+          execute: async (args) => {
+            const target = args[0] ? resolvePath(args[0]) : homeDir;
+            if (!vfs) {
+              cwd = target;
+              updatePrompt();
+              return;
+            }
+            try {
+              const entry = await vfs.stat(target);
+              if (!entry) return context.error(`cd: ${args[0]}: No such file or directory`);
+              if (entry.type !== 'directory') return context.error(`cd: ${args[0]}: Not a directory`);
+              cwd = entry.path;
+              updatePrompt();
+            } catch (err) {
+              context.error(`cd: ${err.message}`);
+            }
+          }
+        })
+        .register({
+          name: 'ls',
+          description: 'List directory contents',
+          usage: 'ls [-l] [-a] [dir]',
+          execute: async (args) => {
+            let showDetails = false;
+            let targetDir = cwd;
+
+            args.forEach(arg => {
+              if (arg.startsWith('-')) {
+                if (arg.includes('l')) showDetails = true;
+              } else {
+                targetDir = resolvePath(arg);
+              }
+            });
+
+            if (!vfs) return print('VFS unavailable.');
+            try {
+              const entries = await vfs.list(targetDir);
+              if (!entries.length) {
+                return print('(directory is empty)', 'term-muted');
+              }
+
+              if (showDetails) {
+                print(`total ${entries.length}`, 'term-muted');
+                entries.forEach(e => {
+                  const isDir = e.type === 'directory';
+                  const typeChar = isDir ? 'd' : '-';
+                  const dateStr = new Date(e.updatedAt || Date.now()).toLocaleDateString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+                  const sizeStr = (e.content ? e.content.length : 4096).toString().padStart(6, ' ');
+                  const nameHtml = isDir
+                    ? `<span class="term-dir">${e.name}/</span>`
+                    : `<span class="term-file">${e.name}</span>`;
+                  printHtml(`${typeChar}rwxr-xr-x 1 kit felis ${sizeStr} ${dateStr} ${nameHtml}`);
+                });
+              } else {
+                let out = '';
+                entries.forEach(e => {
+                  if (e.type === 'directory') {
+                    out += `<span class="term-dir">${e.name}/</span>  `;
+                  } else {
+                    out += `<span class="term-file">${e.name}</span>  `;
+                  }
+                });
+                printHtml(out);
+              }
+            } catch (err) {
+              context.error(`ls: ${err.message}`);
+            }
+          }
+        })
+        .register({
+          name: 'cat',
+          description: 'Concatenate and display file content',
+          usage: 'cat <file>',
+          execute: async (args) => {
+            if (!args[0]) return context.error('cat: missing file operand');
+            const target = resolvePath(args[0]);
+            try {
+              const content = await vfs.readFile(target);
+              print(content);
+            } catch (err) {
+              context.error(`cat: ${target}: ${err.message}`);
+            }
+          }
+        })
+        .register({
+          name: 'touch',
+          description: 'Create an empty file in user directory',
+          usage: 'touch <filename>',
+          execute: async (args) => {
+            if (!args[0]) return context.error('touch: missing file operand');
+            const target = resolvePath(args[0]);
+            try {
+              const stat = await vfs.stat(target).catch(() => null);
+              if (stat) {
+                await vfs.updateFile(target, stat.content || '');
+              } else {
+                await vfs.writeFile(target, '');
+              }
+              context.success(`File touched: ${args[0]}`);
+            } catch (err) {
+              context.error(`touch: ${err.message}`);
+            }
+          }
+        })
+        .register({
+          name: 'mkdir',
+          description: 'Create a virtual directory',
+          usage: 'mkdir <dirname>',
+          execute: async (args) => {
+            if (!args[0]) return context.error('mkdir: missing operand');
+            const target = resolvePath(args[0]);
+            try {
+              await vfs.createDirectory(target);
+              context.success(`Directory created: ${args[0]}`);
+            } catch (err) {
+              context.error(`mkdir: ${err.message}`);
+            }
+          }
+        })
+        .register({
+          name: 'rm',
+          description: 'Remove file or empty directory',
+          usage: 'rm <path>',
+          execute: async (args) => {
+            if (!args[0]) return context.error('rm: missing operand');
+            const target = resolvePath(args[0]);
+            try {
+              await vfs.remove(target);
+              context.success(`Removed: ${args[0]}`);
+            } catch (err) {
+              context.error(`rm: ${err.message}`);
+            }
+          }
+        })
+        .register({
+          name: 'echo',
+          description: 'Write arguments to standard output or file (> file)',
+          usage: 'echo [text] [> file]',
+          execute: async (args) => {
+            const redirectIdx = args.indexOf('>');
+            if (redirectIdx !== -1) {
+              const text = args.slice(0, redirectIdx).join(' ');
+              const file = args[redirectIdx + 1];
+              if (!file) return context.error('echo: syntax error near unexpected token "newline"');
+              const target = resolvePath(file);
+              try {
+                const stat = await vfs.stat(target).catch(() => null);
+                if (stat) {
+                  await vfs.updateFile(target, text);
+                } else {
+                  await vfs.writeFile(target, text);
+                }
+                context.success(`Written to ${file}`);
+              } catch (err) {
+                context.error(`echo: ${err.message}`);
+              }
+            } else {
+              print(args.join(' '));
+            }
+          }
+        })
+        .register({
+          name: 'stat',
+          description: 'Display file or filesystem status',
+          usage: 'stat <path>',
+          execute: async (args) => {
+            if (!args[0]) return context.error('stat: missing operand');
+            const target = resolvePath(args[0]);
+            try {
+              const entry = await vfs.stat(target);
+              if (!entry) return context.error(`stat: cannot stat '${args[0]}': No such file`);
+              print(`  File: ${entry.name}`);
+              print(`  Path: ${entry.path}`);
+              print(`  Type: ${entry.type}`);
+              print(`  Size: ${entry.content ? entry.content.length : 4096} bytes`);
+              print(`Access: userModifiable=${entry.userModifiable}`);
+              print(`Modify: ${new Date(entry.updatedAt).toISOString()}`);
+            } catch (err) {
+              context.error(`stat: ${err.message}`);
+            }
+          }
+        })
+        .register({
+          name: 'tree',
+          description: 'Visual ASCII directory tree',
+          usage: 'tree [path]',
+          execute: async (args) => {
+            const root = args[0] ? resolvePath(args[0]) : cwd;
+            print(root, 'term-dir');
+            async function walk(dirPath, prefix = '') {
+              const list = await vfs.list(dirPath);
+              for (let i = 0; i < list.length; i++) {
+                const item = list[i];
+                const isLast = i === list.length - 1;
+                const connector = isLast ? '└── ' : '├── ';
+                if (item.type === 'directory') {
+                  printHtml(`${prefix}${connector}<span class="term-dir">${item.name}/</span>`);
+                  await walk(item.path, prefix + (isLast ? '    ' : '│   '));
+                } else {
+                  printHtml(`${prefix}${connector}<span class="term-file">${item.name}</span>`);
+                }
+              }
+            }
+            try {
+              await walk(root);
+            } catch (err) {
+              context.error(`tree: ${err.message}`);
+            }
+          }
+        })
+        .register({
+          name: 'apps',
+          description: 'List all registered FelisOS applications',
+          usage: 'apps',
+          execute: async () => {
+            const reg = getAppRegistry();
+            if (!reg || !reg.apps) {
+              return print('App registry unavailable.');
+            }
+            print('Installed FelisOS Applications (*.run):', 'term-banner');
+            reg.apps.forEach(app => {
+              const id = app.id.padEnd(12, ' ');
+              const name = app.name.padEnd(24, ' ');
+              const caps = (app.capabilities || []).join(', ');
+              printHtml(`<span style="color:var(--term-prompt-user); font-weight:bold;">${name}</span> [<span class="term-info">${id}</span>] v${app.version}`);
+              printHtml(`   Capabilities: <span class="term-muted">${caps || 'standard'}</span>`);
+            });
+            print('\nRun "launch <id>" or "open <id>" to open an application window.');
+          }
+        })
+        .register({
+          name: 'launch',
+          description: 'Launch an application window',
+          usage: 'launch <appId|appName>',
+          execute: async (args) => {
+            if (!args[0]) return context.error('launch: specify app id or name (e.g. launch scribe)');
+            const query = args[0].toLowerCase();
+            const reg = getAppRegistry();
+            let app = reg ? reg.getApp(query) : null;
+            if (!app && reg) {
+              app = reg.apps.find(a => a.name.toLowerCase() === query || a.name.toLowerCase() === query + '.run');
+            }
+            if (!app) return context.error(`launch: application not found: "${args[0]}". Run "apps" to view installed apps.`);
+
+            const wm = getWindowManager();
+            if (wm && wm.launch) {
+              wm.launch(app.id);
+              context.success(`Launched ${app.name} (${app.id})`);
+            } else {
+              context.warn(`Window manager unavailable to launch ${app.name}.`);
+            }
+          }
+        })
+        .register({
+          name: 'open',
+          description: 'Alias for launch',
+          usage: 'open <appId|appName>',
+          execute: async (args) => registry.get('launch').execute(args, context)
+        })
+        .register({
+          name: 'history',
+          description: 'Show execution history',
+          usage: 'history',
+          execute: async () => {
+            if (!history.length) return print('No commands in history.');
+            history.forEach((cmd, idx) => {
+              print(`${(idx + 1).toString().padStart(4, ' ')}  ${cmd}`);
+            });
+          }
+        })
+        .register({
+          name: 'uname',
+          description: 'Print FelisOS system information',
+          usage: 'uname [-a]',
+          execute: async () => {
+            print('FelisOS 1.0.0-web x86_64 FelisKernel/ByteUI GNU/VDisk');
+          }
+        })
+        .register({
+          name: 'whoami',
+          description: 'Print current effective userid',
+          usage: 'whoami',
+          execute: async () => {
+            print('kit');
+          }
+        })
+        .register({
+          name: 'date',
+          description: 'Display current date and time',
+          usage: 'date',
+          execute: async () => {
+            print(new Date().toString());
+          }
+        })
+        .register({
+          name: 'theme',
+          description: 'Change terminal theme (dark, matrix, amber, cyber)',
+          usage: 'theme <dark|matrix|amber|cyber>',
+          execute: async (args) => {
+            const theme = (args[0] || '').toLowerCase();
+            document.body.className = '';
+            if (theme === 'matrix') {
+              document.body.classList.add('theme-matrix');
+            } else if (theme === 'amber') {
+              document.body.classList.add('theme-amber');
+            } else if (theme === 'cyber') {
+              document.body.classList.add('theme-cyber');
+            } else if (theme === 'dark') {
+              // default
+            } else {
+              return context.warn('Available themes: dark, matrix, amber, cyber');
+            }
+            context.success(`Theme set to: ${theme || 'dark'}`);
+          }
+        });
+
+      // Banner on boot
+      print('========================================================', 'term-banner');
+      print(' Kit.nCmd Shell v1.0.0 [FelisOS vDisk Environment]', 'term-banner');
+      print(' Type "help" for a list of available commands.', 'term-info');
+      print(' Type "apps" to inspect installed applications.', 'term-info');
+      print('========================================================\n');
+
+      // Command Execution Flow
+      async function handleCommand(commandLine) {
+        const line = commandLine.trim();
+        if (!line) return;
+
+        // Print entered command line with prompt
+        const promptStr = promptPath.textContent;
+        printHtml(`<span class="prompt-user">kit</span>@<span class="prompt-host">felis</span>:<span class="prompt-path">${promptStr}</span>$ ${escapeHtml(line)}`);
+
+        // History update
+        if (line !== history[history.length - 1]) {
+          history.push(line);
+        }
+        historyIndex = -1;
+        input.value = '';
+
+        try {
+          await registry.execute(line, context);
+        } catch (err) {
+          context.error(`Execution error: ${err.message}`);
+        }
+      }
+
+      // Auto-Completion via Tab
+      async function handleTabCompletion() {
+        const text = input.value;
+        const tokens = text.split(' ');
+        if (tokens.length === 1) {
+          // Complete command name
+          const prefix = tokens[0].toLowerCase();
+          const matches = registry.list()
+            .map(c => c.name)
+            .filter(n => n.startsWith(prefix));
+
+          if (matches.length === 1) {
+            input.value = matches[0] + ' ';
+          } else if (matches.length > 1) {
+            printHtml(`<span class="term-muted">${matches.join('   ')}</span>`);
+          }
+        } else {
+          // Complete filename in cwd
+          const prefix = tokens[tokens.length - 1];
+          try {
+            const list = await vfs.list(cwd);
+            const matches = list
+              .map(i => i.name)
+              .filter(n => n.startsWith(prefix));
+
+            if (matches.length === 1) {
+              tokens[tokens.length - 1] = matches[0];
+              input.value = tokens.join(' ');
+            } else if (matches.length > 1) {
+              printHtml(`<span class="term-muted">${matches.join('   ')}</span>`);
+            }
+          } catch (_) {}
+        }
+      }
+
+      // Input keyboard handlers
+      input.addEventListener('keydown', e => {
+        if (e.key === 'Enter') {
+          handleCommand(input.value);
+        } else if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          if (history.length === 0) return;
+          if (historyIndex === -1) {
+            temporaryInput = input.value;
+            historyIndex = history.length - 1;
+          } else if (historyIndex > 0) {
+            historyIndex--;
+          }
+          input.value = history[historyIndex] || '';
+        } else if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          if (historyIndex === -1) return;
+          if (historyIndex < history.length - 1) {
+            historyIndex++;
+            input.value = history[historyIndex];
+          } else {
+            historyIndex = -1;
+            input.value = temporaryInput;
+          }
+        } else if (e.key === 'Tab') {
+          e.preventDefault();
+          handleTabCompletion();
+        } else if (e.ctrlKey && e.key.toLowerCase() === 'l') {
+          e.preventDefault();
+          output.innerHTML = '';
+        } else if (e.ctrlKey && e.key.toLowerCase() === 'c') {
+          e.preventDefault();
+          printHtml(`<span class="prompt-path">${promptPath.textContent}</span>$ ${escapeHtml(input.value)}^C`);
+          input.value = '';
+          historyIndex = -1;
+        }
+      });
+
+      // Focus input on terminal area click
+      document.body.addEventListener('click', e => {
+        if (!window.getSelection().toString()) {
+          input.focus();
+        }
+      });
+
+      // Touch Toolbar Buttons
+      document.querySelectorAll('.touch-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const key = btn.dataset.key;
+          const cmd = btn.dataset.cmd;
+          if (key === 'Tab') {
+            handleTabCompletion();
+          } else if (key === 'ArrowUp') {
+            const ev = new KeyboardEvent('keydown', { key: 'ArrowUp' });
+            input.dispatchEvent(ev);
+          } else if (key === 'ArrowDown') {
+            const ev = new KeyboardEvent('keydown', { key: 'ArrowDown' });
+            input.dispatchEvent(ev);
+          } else if (cmd) {
+            handleCommand(cmd);
+          }
+          input.focus();
+        });
+      });
+
+      function escapeHtml(str) {
+        return String(str || '')
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;');
+      }
+
+      updatePrompt();
+    })();
+  </script>
+</body>
+</html>

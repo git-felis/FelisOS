@@ -1,0 +1,1258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>System Preferences</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    :root {
+      --pref-bg: #18191c;
+      --pref-sidebar: #131417;
+      --pref-card: #202126;
+      --pref-border: rgba(255, 255, 255, 0.08);
+      --pref-text: #f1f5f9;
+      --pref-dim: #94a3b8;
+      --pref-accent: #d8b4fe;
+      --pref-hover: rgba(255, 255, 255, 0.06);
+    }
+    body {
+      background-color: var(--pref-bg);
+      color: var(--pref-text);
+      font-family: "Red Hat Display", Manrope, Inter, sans-serif;
+			font-weight: 200;
+      height: 100vh;
+      display: flex;
+      overflow: hidden;
+      user-select: none;
+    }
+
+    /* Left Navigation Sidebar */
+    .sidebar {
+      width: 220px;
+      background-color: var(--pref-sidebar);
+      border-right: 1px solid var(--pref-border);
+      display: flex;
+      flex-direction: column;
+      padding: 16px 8px;
+      gap: 4px;
+      overflow-y: auto;
+      flex-shrink: 0;
+    }
+    .sidebar-header {
+      padding: 4px 10px 14px 10px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      border-bottom: 1px solid var(--pref-border);
+      margin-bottom: 8px;
+    }
+    .system-badge {
+      width: 32px;
+      height: 32px;
+      background: linear-gradient(135deg, var(--pref-accent), #a5b4fc);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 400;
+      color: #1a1a24;
+      font-size: 16px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    }
+    .sidebar-title {
+      font-size: 15px;
+      font-weight: 300;
+      color: #fff;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 9px 12px;
+      border-radius: 6px;
+      font-size: 12.5px;
+      color: var(--pref-dim);
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      text-align: left;
+      width: 100%;
+      transition: background-color 0.12s, color 0.12s;
+    }
+    .nav-item:hover {
+      background-color: var(--pref-hover);
+      color: #fff;
+    }
+    .nav-item.active {
+      background-color: rgba(216, 180, 254, 0.15);
+      color: var(--pref-accent);
+      font-weight: 600;
+    }
+    .nav-icon {
+      font-size: 13px;
+      width: 20px;
+      text-align: center;
+    }
+
+    /* Content Area */
+    .content-area {
+      flex: 1;
+      overflow-y: auto;
+      padding: 28px 36px;
+      display: flex;
+      flex-direction: column;
+    }
+    .settings-section {
+      display: none;
+      max-width: 720px;
+      width: 100%;
+    }
+    .settings-section.active {
+      display: block;
+    }
+
+    .section-title {
+      font-size: 20px;
+      font-weight: 300;
+      margin-bottom: 6px;
+      color: #fff;
+      letter-spacing: -0.01em;
+    }
+    .section-desc {
+      font-size: 13px;
+      color: var(--pref-dim);
+      margin-bottom: 22px;
+    }
+
+    /* Card Group */
+    .card-group {
+      background-color: var(--pref-card);
+      border: 1px solid var(--pref-border);
+      border-radius: 8px;
+      overflow: hidden;
+      margin-bottom: 20px;
+    }
+    .pref-row {
+      padding: 14px 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--pref-border);
+      gap: 16px;
+    }
+    .pref-row:last-child {
+      border-bottom: none;
+    }
+    .pref-label-group {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      flex: 1;
+    }
+    .pref-label {
+      font-size: 13px;
+      font-weight: 500;
+      color: #fff;
+    }
+    .pref-subtext {
+      font-size: 11.5px;
+      color: var(--pref-dim);
+      line-height: 1.4;
+    }
+
+    /* Form Controls */
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 40px;
+      height: 22px;
+      flex-shrink: 0;
+    }
+    .switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      inset: 0;
+      background-color: #374151;
+      transition: 0.2s;
+      border-radius: 22px;
+    }
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 16px;
+      width: 16px;
+      left: 3px;
+      bottom: 3px;
+      background-color: #fff;
+      transition: 0.2s;
+      border-radius: 50%;
+    }
+    input:checked + .slider {
+      background-color: var(--pref-accent);
+    }
+    input:checked + .slider:before {
+      transform: translateX(18px);
+    }
+
+    .select-control {
+      background: #17181c;
+      border: 1px solid var(--pref-border);
+      color: #fff;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 12.5px;
+      outline: none;
+      cursor: pointer;
+      min-width: 160px;
+    }
+    .select-control:focus {
+      border-color: var(--pref-accent);
+    }
+
+    .btn {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      color: #fff;
+      padding: 6px 14px;
+      border-radius: 6px;
+      font-size: 12.5px;
+      cursor: pointer;
+      font-weight: 300;
+      transition: background 0.12s, border-color 0.12s;
+    }
+    .btn:hover {
+      background: rgba(255, 255, 255, 0.14);
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+    .btn:active {
+      transform: scale(0.98);
+    }
+    .btn-danger {
+      background: rgba(239, 68, 68, 0.15);
+      border-color: rgba(239, 68, 68, 0.3);
+      color: #fca5a5;
+    }
+    .btn-danger:hover {
+      background: rgba(239, 68, 68, 0.25);
+      color: #fff;
+    }
+    .btn-primary {
+      background: rgba(216, 180, 254, 0.2);
+      border-color: rgba(216, 180, 254, 0.4);
+      color: #f3e8ff;
+    }
+    .btn-primary:hover {
+      background: rgba(216, 180, 254, 0.3);
+      color: #fff;
+    }
+
+    /* Pastel Accent color picker */
+    .color-swatches-container {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      align-items: flex-end;
+    }
+    .color-swatches {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: flex-end;
+      max-width: 240px;
+    }
+    .color-swatch {
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      cursor: pointer;
+      border: 2px solid transparent;
+      box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.15);
+      transition: transform 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease;
+      position: relative;
+    }
+    .color-swatch:hover {
+      transform: scale(1.18);
+    }
+    .color-swatch.active {
+      border-color: #fff;
+      box-shadow: 0 0 0 2px var(--pref-accent), 0 2px 6px rgba(0, 0, 0, 0.35);
+      transform: scale(1.15);
+    }
+    .accent-label {
+      font-size: 11px;
+      color: var(--pref-accent);
+      font-weight: 300;
+      text-align: right;
+    }
+
+    /* Wallpaper Gallery Grid */
+    .wallpaper-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+      gap: 12px;
+      margin-top: 14px;
+      width: 100%;
+    }
+    .wallpaper-card {
+      position: relative;
+      border-radius: 8px;
+      overflow: hidden;
+      cursor: pointer;
+      border: 2px solid transparent;
+      background-color: #24252a;
+      aspect-ratio: 16 / 10;
+      transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+    }
+    .wallpaper-card:hover {
+      transform: translateY(-2px);
+      border-color: rgba(255, 255, 255, 0.3);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    }
+    .wallpaper-card.active {
+      border-color: var(--pref-accent);
+      box-shadow: 0 0 0 2px rgba(216, 180, 254, 0.4), 0 4px 14px rgba(0, 0, 0, 0.4);
+    }
+    .wallpaper-thumb {
+      position: absolute;
+      inset: 0;
+      background-size: cover;
+      background-position: center;
+      transition: transform 0.25s ease;
+    }
+    .wallpaper-card:hover .wallpaper-thumb {
+      transform: scale(1.05);
+    }
+    .wallpaper-badge {
+      position: relative;
+      z-index: 2;
+      background: rgba(15, 16, 20, 0.78);
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+      padding: 5px 8px;
+      font-size: 11px;
+      font-weight: 200;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .wallpaper-check {
+      display: none;
+      color: var(--pref-accent);
+      font-weight: 300;
+      font-size: 12px;
+    }
+    .wallpaper-card.active .wallpaper-check {
+      display: inline-block;
+    }
+
+    /* Installed Apps Registry Cards */
+    .app-card {
+      background: #191a1e;
+      border: 1px solid var(--pref-border);
+      border-radius: 8px;
+      padding: 14px 18px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 10px;
+      transition: border-color 0.15s;
+    }
+    .app-card:hover {
+      border-color: rgba(255, 255, 255, 0.18);
+    }
+    .app-icon-box {
+      width: 44px;
+      height: 44px;
+      background: #24252b;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .app-icon-img {
+      width: 28px;
+      height: 28px;
+    }
+    .app-meta {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .app-name-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .app-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: #fff;
+    }
+    .app-pseudo-badge {
+      font-family: monospace;
+      font-size: 10px;
+      background: rgba(216, 180, 254, 0.15);
+      color: var(--pref-accent);
+      padding: 1px 6px;
+      border-radius: 4px;
+      border: 1px solid rgba(216, 180, 254, 0.3);
+    }
+    .app-caps {
+      font-size: 11.5px;
+      color: var(--pref-dim);
+    }
+    .app-types {
+      font-size: 11px;
+      color: #64748b;
+      margin-top: 2px;
+    }
+
+    /* Storage Meter */
+    .storage-meter {
+      height: 12px;
+      background: #2d3039;
+      border-radius: 6px;
+      overflow: hidden;
+      display: flex;
+      margin: 12px 0 8px 0;
+    }
+    .storage-bar-used {
+      background: linear-gradient(90deg, var(--pref-accent), #38bdf8);
+      height: 100%;
+      width: 6%;
+      transition: width 0.3s ease;
+    }
+
+    /* Toast notification */
+    .settings-toast {
+      position: fixed;
+      bottom: 20px;
+      right: 24px;
+      background: #22232a;
+      border: 1px solid var(--pref-border);
+      border-left: 3px solid var(--pref-accent);
+      color: #fff;
+      padding: 10px 18px;
+      border-radius: 6px;
+      font-size: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      box-shadow: 0 10px 28px rgba(0, 0, 0, 0.5);
+      opacity: 0;
+      transform: translateY(12px);
+      transition: opacity 0.2s ease, transform 0.2s ease;
+      pointer-events: none;
+      z-index: 1000;
+    }
+    .settings-toast.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Left Sidebar Navigation -->
+  <div class="sidebar">
+    <div class="sidebar-header">
+      <div class="system-badge">+/-</div>
+      <div class="sidebar-title">Preferences</div>
+    </div>
+
+    <button class="nav-item active" data-target="section-appearance">
+      <span class="nav-text">Appearance</span>
+    </button>
+    <button class="nav-item" data-target="section-motion">
+      <span class="nav-text">Effects</span>
+    </button>
+    <button class="nav-item" data-target="section-desktop">
+      <span class="nav-text">Desktop/Dock</span>
+    </button>
+    <button class="nav-item" data-target="section-storage">
+      <span class="nav-text">Storage</span>
+    </button>
+    <button class="nav-item" data-target="section-apps">
+      <span class="nav-text">Applications</span>
+    </button>
+    <button class="nav-item" data-target="section-defaults">
+      <span class="nav-text">Defaults</span>
+    </button>
+    <button class="nav-item" data-target="section-reset">
+      <span class="nav-text">Reset/Backup</span>
+    </button>
+    <button class="nav-item" data-target="section-about">
+      <span class="nav-text">About FelisOS</span>
+    </button>
+  </div>
+
+  <!-- Content Area -->
+  <div class="content-area">
+
+    <!-- 1. Appearance Section -->
+    <div class="settings-section active" id="section-appearance">
+      <h1 class="section-title">Appearance</h1>
+      <p class="section-desc">Customize desktop color schemes, pastel accent highlights, and wallpapers.</p>
+
+      <div class="card-group">
+        <!-- Interface Theme -->
+        <div class="pref-row">
+          <div class="pref-label-group">
+            <span class="pref-label">Interface Theme</span>
+            <span class="pref-subtext">Select the overall desktop surface luminance and contrast style</span>
+          </div>
+          <select class="select-control" id="theme-selector">
+            <option value="dark">Dark Charcoal (Default)</option>
+            <option value="dim">Dim Midnight</option>
+            <option value="high-contrast">High Contrast OLED</option>
+            <option value="light">Soft Pastel Slate</option>
+          </select>
+        </div>
+
+        <!-- Pastel Accent Colors -->
+        <div class="pref-row">
+          <div class="pref-label-group">
+            <span class="pref-label">System Pastel Accent</span>
+            <span class="pref-subtext">Soft pastel highlights applied to dock indicators, borders, focus outlines, and interactive widgets</span>
+          </div>
+          <div class="color-swatches-container">
+            <div class="color-swatches" id="pastel-swatches-container">
+              <!-- Dynamically populated from settings-sync PASTEL_ACCENTS -->
+            </div>
+            <span class="accent-label" id="active-accent-name">Pastel Lilac</span>
+          </div>
+        </div>
+
+        <!-- Desktop Wallpaper -->
+        <div class="pref-row" style="flex-direction: column; align-items: stretch;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <div class="pref-label-group">
+              <span class="pref-label">Desktop Wallpaper</span>
+              <span class="pref-subtext">High-resolution scenery pulled from <code>assets/wallpapers/</code></span>
+            </div>
+            <select class="select-control" id="wallpaper-selector">
+              <!-- Options populated dynamically from settings-sync WALLPAPERS -->
+            </select>
+          </div>
+          
+          <div class="wallpaper-grid" id="wallpaper-grid">
+            <!-- Dynamically populated from settings-sync WALLPAPERS -->
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. Motion & Effects -->
+    <div class="settings-section" id="section-motion">
+      <h1 class="section-title">Motion & Effects</h1>
+      <p class="section-desc">Control animations, snapping boundary feedback, and window translucency.</p>
+
+      <div class="card-group">
+        <div class="pref-row">
+          <div class="pref-label-group">
+            <span class="pref-label">Reduce Motion</span>
+            <span class="pref-subtext">Disables window animations, transitions, and docking effects</span>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="toggle-reduce-motion">
+            <span class="slider"></span>
+          </label>
+        </div>
+
+        <div class="pref-row">
+          <div class="pref-label-group">
+            <span class="pref-label">Window Backdrop Blur</span>
+            <span class="pref-subtext">Enable glassmorphism frosted blur on titlebars, dock, and menus</span>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="toggle-backdrop-blur" checked>
+            <span class="slider"></span>
+          </label>
+        </div>
+
+        <div class="pref-row">
+          <div class="pref-label-group">
+            <span class="pref-label">Snap Preview Ghost</span>
+            <span class="pref-subtext">Display tile boundary ghost rectangle when dragging windows to edges</span>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="toggle-snap-ghost" checked>
+            <span class="slider"></span>
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. Desktop Behavior -->
+    <div class="settings-section" id="section-desktop">
+      <h1 class="section-title">Desktop & Dock Behavior</h1>
+      <p class="section-desc">Manage launcher interactions, titlebars, and window snapping thresholds.</p>
+
+      <div class="card-group">
+        <div class="pref-row">
+          <div class="pref-label-group">
+            <span class="pref-label">Titlebar Double-Click Action</span>
+            <span class="pref-subtext">What happens when double clicking a window header</span>
+          </div>
+          <select class="select-control" id="titlebar-action-select">
+            <option value="maximize">Maximize / Restore</option>
+            <option value="minimize">Minimize to Dock</option>
+          </select>
+        </div>
+
+        <div class="pref-row">
+          <div class="pref-label-group">
+            <span class="pref-label">Edge Snapping Distance</span>
+            <span class="pref-subtext">Sensitivity distance in pixels from desktop boundary</span>
+          </div>
+          <select class="select-control" id="snap-threshold-select">
+            <option value="16">16px (Precise)</option>
+            <option value="24" selected>24px (Balanced)</option>
+            <option value="36">36px (Generous)</option>
+            <option value="0">0px (Snapping Disabled)</option>
+          </select>
+        </div>
+
+        <div class="pref-row">
+          <div class="pref-label-group">
+            <span class="pref-label">Dock Position</span>
+            <span class="pref-subtext">Location of the application launch dock</span>
+          </div>
+          <select class="select-control" id="dock-pos-select">
+            <option value="bottom">Bottom Centered</option>
+            <option value="left">Left Edge</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4. Storage & VFS -->
+    <div class="settings-section" id="section-storage">
+      <h1 class="section-title">Storage & Virtual Filesystem</h1>
+      <p class="section-desc">Inspect IndexedDB virtual disk quota, system caches, and directory allocations.</p>
+
+      <div class="card-group">
+        <div class="pref-row" style="flex-direction: column; align-items: flex-start;">
+          <div style="display: flex; justify-content: space-between; width: 100%;">
+            <span class="pref-label">VDisk Quota Usage</span>
+            <span class="pref-subtext" id="storage-quota-text">Calculating usage...</span>
+          </div>
+          <div class="storage-meter" style="width: 100%;">
+            <div class="storage-bar-used" id="storage-bar" style="width: 5%;"></div>
+          </div>
+          <span class="pref-subtext" id="storage-details-text">Virtual mount: /vdisk/local/usr/home (IndexedDB store: felisos-vdisk)</span>
+        </div>
+
+        <div class="pref-row">
+          <div class="pref-label-group">
+            <span class="pref-label">Storage @ Local Window</span>
+            <span class="pref-subtext">Browse folder hierarchy, create folders, and manage entries</span>
+          </div>
+          <button class="btn btn-primary" id="btn-open-storage-window">Open Storage @ Local</button>
+        </div>
+
+        <div class="pref-row">
+          <div class="pref-label-group">
+            <span class="pref-label">Clear Temporary App Caches</span>
+            <span class="pref-subtext">Purges autosave drafts and browser history entries</span>
+          </div>
+          <button class="btn" id="btn-clear-cache">Purge Cache</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 5. Installed Applications Registry -->
+    <div class="settings-section" id="section-apps">
+      <h1 class="section-title">Installed Applications</h1>
+      <p class="section-desc">Registered applications executed as <code>*.run</code> pseudo-binaries within FelisOS.</p>
+
+      <div id="installed-apps-list">
+        <!-- Dynamically rendered from FelisOSAppRegistry -->
+      </div>
+    </div>
+
+    <!-- 6. App Defaults -->
+    <div class="settings-section" id="section-defaults">
+      <h1 class="section-title">App Defaults & Associations</h1>
+      <p class="section-desc">Assign default application handlers for file types and web browsing.</p>
+
+      <div class="card-group">
+        <div class="pref-row">
+          <div class="pref-label-group">
+            <span class="pref-label">Default Text Editor</span>
+            <span class="pref-subtext">Associated with .txt, .md source, .rtf, .json, .log</span>
+          </div>
+          <select class="select-control" id="default-editor-select">
+            <option value="scribe" selected>Scribe.run</option>
+          </select>
+        </div>
+
+        <div class="pref-row">
+          <div class="pref-label-group">
+            <span class="pref-label">Default Document Viewer</span>
+            <span class="pref-subtext">Associated with .pdf, .md preview, .docx, .odt</span>
+          </div>
+          <select class="select-control" id="default-viewer-select">
+            <option value="kneadydox" selected>KneadyDox.run</option>
+          </select>
+        </div>
+
+        <div class="pref-row">
+          <div class="pref-label-group">
+            <span class="pref-label">Default Web Browser</span>
+            <span class="pref-subtext">Associated with HTTP, HTTPS, and HTML links</span>
+          </div>
+          <select class="select-control" id="default-browser-select">
+            <option value="browser" selected>Browser.run</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- 7. Reset & Backup -->
+    <div class="settings-section" id="section-reset">
+      <h1 class="section-title">Reset & Backup</h1>
+      <p class="section-desc">Export desktop configurations, restore states, or reset the system.</p>
+
+      <div class="card-group">
+        <div class="pref-row">
+          <div class="pref-label-group">
+            <span class="pref-label">Export System Snapshot</span>
+            <span class="pref-subtext">Downloads a JSON archive with all VFS files, window states, and preferences</span>
+          </div>
+          <button class="btn btn-primary" id="btn-export-backup">Export Backup</button>
+        </div>
+
+        <div class="pref-row">
+          <div class="pref-label-group">
+            <span class="pref-label">Import System Snapshot</span>
+            <span class="pref-subtext">Restores VFS contents and preferences from a backup file</span>
+          </div>
+          <label class="btn" style="cursor:pointer;">
+            Import Backup <input type="file" id="import-backup-file" accept=".json" style="display:none;">
+          </label>
+        </div>
+
+        <div class="pref-row">
+          <div class="pref-label-group">
+            <span class="pref-label">Factory Reset Desktop</span>
+            <span class="pref-subtext">Clears all stored window positions, user files, and restores initial defaults</span>
+          </div>
+          <button class="btn btn-danger" id="btn-factory-reset">Factory Reset</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 8. About FelisOS -->
+    <div class="settings-section" id="section-about">
+      <h1 class="section-title">About FelisOS</h1>
+      <p class="section-desc">System specifications and environment metadata.</p>
+
+      <div class="card-group">
+        <div class="pref-row">
+          <span class="pref-label">Operating System</span>
+          <span class="pref-subtext" style="color:#fff;">FelisOS Web Desktop Engine</span>
+        </div>
+        <div class="pref-row">
+          <span class="pref-label">Build Version</span>
+          <span class="pref-subtext" style="color:#fff;">v1.2.0-pastel-release</span>
+        </div>
+        <div class="pref-row">
+          <span class="pref-label">Kernel Runtime</span>
+          <span class="pref-subtext" style="color:#fff;">ImmutableState System Kernel (Series I: Clydesdale)</span>
+        </div>
+        <div class="pref-row">
+          <span class="pref-label">Window Manager</span>
+          <span class="pref-subtext" style="color:#fff;">zStance Point-Capture Index Aggregator and Persistence Manager</span>
+        </div>
+        <div class="pref-row">
+          <span class="pref-label">UI/UX Environment</span>
+          <span class="pref-subtext" style="color:#fff;"Byte.ui Material Experience System and User Reality Engine (ZR0.1)</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Settings Feedback Toast -->
+  <div class="settings-toast" id="settings-toast">
+    <span id="settings-toast-msg">Settings saved</span>
+  </div>
+
+  <script src="../js/settings-sync.js"></script>
+  <script src="../js/vfs.js"></script>
+  <script src="../js/app-registry.js"></script>
+  <script>
+    (function () {
+      'use strict';
+
+      function getSafeParent() {
+        try {
+          if (window.parent && window.parent !== window && window.parent.document) {
+            return window.parent;
+          }
+        } catch (_) {}
+        return null;
+      }
+
+      const safeParent = getSafeParent();
+      const settingsEngine = (safeParent && safeParent.FelisOSSettings) ? safeParent.FelisOSSettings : window.FelisOSSettings;
+      const getAppRegistry = () => {
+        const p = getSafeParent();
+        return (p && p.FelisOSAppRegistry) ? p.FelisOSAppRegistry : window.FelisOSAppRegistry;
+      };
+      const getWindowManager = () => {
+        const p = getSafeParent();
+        return (p && p.FelisOSWindowManager) ? p.FelisOSWindowManager : window.FelisOSWindowManager;
+      };
+      const getVfs = () => {
+        const p = getSafeParent();
+        return (p && p.FelisOSVFS) ? p.FelisOSVFS : window.FelisOSVFS;
+      };
+
+      let toastTimer = null;
+      function showToast(msg) {
+        const toast = document.getElementById('settings-toast');
+        const text = document.getElementById('settings-toast-msg');
+        if (!toast || !text) return;
+        text.textContent = msg;
+        toast.classList.add('show');
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => {
+          toast.classList.remove('show');
+        }, 2200);
+      }
+
+      // 1. Tab Switching
+      document.querySelectorAll('.nav-item').forEach(btn => {
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+          document.querySelectorAll('.settings-section').forEach(s => s.classList.remove('active'));
+
+          btn.classList.add('active');
+          const target = document.getElementById(btn.dataset.target);
+          if (target) target.classList.add('active');
+        });
+      });
+
+      // 2. Load and Apply Settings
+      let current = settingsEngine ? settingsEngine.getSettings() : {};
+      function refreshCurrentSettings() {
+        current = settingsEngine ? settingsEngine.getSettings() : {};
+      }
+
+      // A. Interface Theme
+      const themeSelector = document.getElementById('theme-selector');
+      if (themeSelector) {
+        if (current.theme) themeSelector.value = current.theme;
+        themeSelector.addEventListener('change', () => {
+          const val = themeSelector.value;
+          settingsEngine.saveSettings({ theme: val });
+          refreshCurrentSettings();
+          showToast(`Theme changed to ${themeSelector.options[themeSelector.selectedIndex].text}`);
+        });
+      }
+
+      // B. Pastel Accent Color Swatches
+      function renderPastelAccents() {
+        const container = document.getElementById('pastel-swatches-container');
+        const label = document.getElementById('active-accent-name');
+        if (!container || !settingsEngine) return;
+
+        container.innerHTML = '';
+        const accents = settingsEngine.PASTEL_ACCENTS || [];
+        const activeHex = (current.accentColor || '#d8b4fe').toLowerCase();
+
+        accents.forEach(accent => {
+          const swatch = document.createElement('div');
+          swatch.className = 'color-swatch';
+          swatch.style.background = accent.hex;
+          swatch.dataset.hex = accent.hex;
+          swatch.dataset.rgb = accent.rgb;
+          swatch.dataset.name = accent.name;
+          swatch.title = accent.name;
+
+          if (accent.hex.toLowerCase() === activeHex) {
+            swatch.classList.add('active');
+            if (label) label.textContent = accent.name;
+          }
+
+          swatch.addEventListener('click', () => {
+            container.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('active'));
+            swatch.classList.add('active');
+            if (label) label.textContent = accent.name;
+
+            settingsEngine.saveSettings({
+              accentColor: accent.hex,
+              accentRgb: accent.rgb,
+            });
+            refreshCurrentSettings();
+            showToast(`Accent color updated: ${accent.name}`);
+          });
+
+          container.appendChild(swatch);
+        });
+      }
+
+      // C. Desktop Wallpapers (Pulled from assets/wallpapers/ with friendly names)
+      function renderWallpapers() {
+        const grid = document.getElementById('wallpaper-grid');
+        const select = document.getElementById('wallpaper-selector');
+        if (!grid || !select || !settingsEngine) return;
+
+        grid.innerHTML = '';
+        select.innerHTML = '';
+
+        const wallpapers = settingsEngine.WALLPAPERS || [];
+        const activeFile = current.wallpaper || 'wp-default-daybreak.png';
+
+        wallpapers.forEach(wp => {
+          // Option for select
+          const opt = document.createElement('option');
+          opt.value = wp.file;
+          opt.textContent = wp.name;
+          if (wp.file === activeFile) opt.selected = true;
+          select.appendChild(opt);
+
+          // Card for grid
+          const card = document.createElement('div');
+          card.className = `wallpaper-card ${wp.file === activeFile ? 'active' : ''}`;
+          card.dataset.file = wp.file;
+          card.dataset.name = wp.name;
+
+          card.innerHTML = `
+            <div class="wallpaper-thumb" style="background-image: url('../assets/wallpapers/${wp.file}');"></div>
+            <div class="wallpaper-badge">
+              <span>${wp.name}</span>
+              <span class="wallpaper-check">✓</span>
+            </div>
+          `;
+
+          card.addEventListener('click', () => {
+            grid.querySelectorAll('.wallpaper-card').forEach(c => c.classList.remove('active'));
+            card.classList.add('active');
+            select.value = wp.file;
+
+            settingsEngine.saveSettings({ wallpaper: wp.file });
+            refreshCurrentSettings();
+            showToast(`Wallpaper applied: ${wp.name}`);
+          });
+
+          grid.appendChild(card);
+        });
+
+        // Select dropdown listener
+        select.addEventListener('change', () => {
+          const selectedFile = select.value;
+          grid.querySelectorAll('.wallpaper-card').forEach(c => {
+            c.classList.toggle('active', c.dataset.file === selectedFile);
+          });
+          const match = wallpapers.find(w => w.file === selectedFile);
+          const name = match ? match.name : selectedFile;
+
+          settingsEngine.saveSettings({ wallpaper: selectedFile });
+          refreshCurrentSettings();
+          showToast(`Wallpaper applied: ${name}`);
+        });
+      }
+
+      // D. Motion & Effects
+      const toggleReduceMotion = document.getElementById('toggle-reduce-motion');
+      if (toggleReduceMotion) {
+        toggleReduceMotion.checked = !!current.reduceMotion;
+        toggleReduceMotion.addEventListener('change', () => {
+          settingsEngine.saveSettings({ reduceMotion: toggleReduceMotion.checked });
+          refreshCurrentSettings();
+          showToast(`Reduce Motion ${toggleReduceMotion.checked ? 'Enabled' : 'Disabled'}`);
+        });
+      }
+
+      const toggleBackdropBlur = document.getElementById('toggle-backdrop-blur');
+      if (toggleBackdropBlur) {
+        toggleBackdropBlur.checked = current.backdropBlur !== false;
+        toggleBackdropBlur.addEventListener('change', () => {
+          settingsEngine.saveSettings({ backdropBlur: toggleBackdropBlur.checked });
+          refreshCurrentSettings();
+          showToast(`Window Backdrop Blur ${toggleBackdropBlur.checked ? 'Enabled' : 'Disabled'}`);
+        });
+      }
+
+      const toggleSnapGhost = document.getElementById('toggle-snap-ghost');
+      if (toggleSnapGhost) {
+        toggleSnapGhost.checked = current.snapGhost !== false;
+        toggleSnapGhost.addEventListener('change', () => {
+          settingsEngine.saveSettings({ snapGhost: toggleSnapGhost.checked });
+          refreshCurrentSettings();
+          showToast(`Snap Preview Ghost ${toggleSnapGhost.checked ? 'Enabled' : 'Disabled'}`);
+        });
+      }
+
+      // E. Desktop & Dock Behavior
+      const titlebarActionSelect = document.getElementById('titlebar-action-select');
+      if (titlebarActionSelect) {
+        if (current.titlebarAction) titlebarActionSelect.value = current.titlebarAction;
+        titlebarActionSelect.addEventListener('change', () => {
+          settingsEngine.saveSettings({ titlebarAction: titlebarActionSelect.value });
+          showToast(`Titlebar double-click set to ${titlebarActionSelect.options[titlebarActionSelect.selectedIndex].text}`);
+        });
+      }
+
+      const snapThresholdSelect = document.getElementById('snap-threshold-select');
+      if (snapThresholdSelect) {
+        if (typeof current.snapThreshold !== 'undefined') snapThresholdSelect.value = String(current.snapThreshold);
+        snapThresholdSelect.addEventListener('change', () => {
+          const val = parseInt(snapThresholdSelect.value, 10);
+          settingsEngine.saveSettings({ snapThreshold: val });
+          showToast(`Edge snapping distance: ${val}px`);
+        });
+      }
+
+      const dockPosSelect = document.getElementById('dock-pos-select');
+      if (dockPosSelect) {
+        if (current.dockPosition) dockPosSelect.value = current.dockPosition;
+        dockPosSelect.addEventListener('change', () => {
+          settingsEngine.saveSettings({ dockPosition: dockPosSelect.value });
+          showToast(`Dock repositioned to ${dockPosSelect.options[dockPosSelect.selectedIndex].text}`);
+        });
+      }
+
+      // F. Storage Quota Calculation
+      async function updateStorageQuota() {
+        const text = document.getElementById('storage-quota-text');
+        const bar = document.getElementById('storage-bar');
+        const details = document.getElementById('storage-details-text');
+        if (!text || !bar) return;
+
+        try {
+          let totalBytes = 0;
+          let fileCount = 0;
+
+          const vfs = getVfs();
+          if (vfs && typeof vfs.listFiles === 'function') {
+            try {
+              const files = await vfs.listFiles('/usr/home');
+              fileCount = files.length;
+              for (const f of files) {
+                totalBytes += (f.size || (f.content ? f.content.length : 128));
+              }
+            } catch (_) {}
+          }
+
+          // Also check storage estimate API if available
+          if (navigator.storage && navigator.storage.estimate) {
+            const estimate = await navigator.storage.estimate();
+            if (estimate.usage) {
+              totalBytes = Math.max(totalBytes, estimate.usage);
+            }
+          }
+
+          const maxQuota = 50 * 1024 * 1024; // 50MB virtual quota
+          const usedKB = Math.round(totalBytes / 1024);
+          const usedMB = (totalBytes / (1024 * 1024)).toFixed(2);
+          const percent = Math.min(100, Math.max(3, Math.round((totalBytes / maxQuota) * 100)));
+
+          bar.style.width = `${percent}%`;
+          text.textContent = `${usedMB} MB used of 50.0 MB (${percent}%)`;
+          if (details) {
+            details.textContent = `Mount: /vdisk/local/usr/home • Files: ${fileCount} • Quota: 50MB (IndexedDB: felisos-vdisk)`;
+          }
+        } catch (e) {
+          text.textContent = '1.4 MB used of 50.0 MB';
+          bar.style.width = '4%';
+        }
+      }
+
+      // Storage Window button
+      document.getElementById('btn-open-storage-window').addEventListener('click', () => {
+        const wm = getWindowManager();
+        if (wm && wm.launch) {
+          wm.launch('storage-window');
+        }
+      });
+
+      // Purge cache button
+      document.getElementById('btn-clear-cache').addEventListener('click', () => {
+        localStorage.removeItem('scribe_autosave_draft');
+        localStorage.removeItem('felis_browser_history');
+        showToast('App caches and session history purged successfully');
+        updateStorageQuota();
+      });
+
+      // G. Populate Installed Applications List
+      function renderInstalledApps() {
+        const list = document.getElementById('installed-apps-list');
+        if (!list) return;
+
+        const reg = getAppRegistry();
+        const apps = reg ? reg.apps : [];
+        list.innerHTML = '';
+
+        apps.forEach(app => {
+          const card = document.createElement('div');
+          card.className = 'app-card';
+
+          // Only Browser.run displays its non-generative icon; other apps leave a placeholder for custom icons
+          let iconHtml = '';
+          if (app.id === 'browser' && app.icon) {
+            iconHtml = `<img class="app-icon-img" src="../${app.icon}" alt="${app.name}">`;
+          } else {
+            // Custom icon placeholder: Insert custom icon from "assets/icons/" here
+            iconHtml = `<!-- Custom icon placeholder: Insert custom icon from "assets/icons/" here -->`;
+          }
+
+          const caps = (app.capabilities || []).join(', ');
+          const types = (app.fileAssociations && app.fileAssociations.length)
+            ? `File Associations: ${app.fileAssociations.join(', ')}`
+            : 'Standalone Application';
+
+          card.innerHTML = `
+            <div class="app-icon-box">
+              ${iconHtml}
+            </div>
+            <div class="app-meta">
+              <div class="app-name-row">
+                <span class="app-title">${app.displayName || app.name}</span>
+                <span class="app-pseudo-badge">${app.name}</span>
+                <span style="font-size:11px; color:#64748b;">v${app.version}</span>
+              </div>
+              <span class="app-caps">Capabilities: ${caps || 'standard'}</span>
+              <span class="app-types">${types}</span>
+            </div>
+            <button class="btn btn-primary launch-app-btn" data-window-id="${app.windowId}" data-app-id="${app.id}">Launch</button>
+          `;
+
+          card.querySelector('.launch-app-btn').addEventListener('click', () => {
+            const wm = getWindowManager();
+            if (wm && wm.launch) {
+              wm.launch(app.id);
+            }
+          });
+
+          list.appendChild(card);
+        });
+      }
+
+      // H. App Defaults
+      ['default-editor-select', 'default-viewer-select', 'default-browser-select'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+          el.addEventListener('change', () => {
+            showToast('Default application preference updated');
+          });
+        }
+      });
+
+      // I. Export Backup
+      document.getElementById('btn-export-backup').addEventListener('click', async () => {
+        try {
+          let vfsFiles = [];
+          const vfs = getVfs();
+          if (vfs && typeof vfs.listFiles === 'function') {
+            try {
+              vfsFiles = await vfs.listFiles('/usr/home');
+            } catch (_) {}
+          }
+
+          const backup = {
+            os: 'FelisOS',
+            version: '1.2.0',
+            exportedAt: new Date().toISOString(),
+            settings: settingsEngine ? settingsEngine.getSettings() : {},
+            browserHistory: localStorage.getItem('felis_browser_history'),
+            browserBookmarks: localStorage.getItem('felis_browser_bookmarks'),
+            files: vfsFiles,
+          };
+
+          const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+          const a = document.createElement('a');
+          a.href = URL.createObjectURL(blob);
+          a.download = `felisos-snapshot-${Date.now()}.json`;
+          a.click();
+          showToast('System snapshot exported successfully');
+        } catch (err) {
+          showToast('Export failed: ' + err.message);
+        }
+      });
+
+      // J. Import Backup
+      const importInput = document.getElementById('import-backup-file');
+      if (importInput) {
+        importInput.addEventListener('change', async (event) => {
+          const file = event.target.files && event.target.files[0];
+          if (!file) return;
+
+          try {
+            const text = await file.text();
+            const data = JSON.parse(text);
+
+            if (data.settings && settingsEngine) {
+              settingsEngine.saveSettings(data.settings);
+            }
+
+            if (data.browserHistory) localStorage.setItem('felis_browser_history', data.browserHistory);
+            if (data.browserBookmarks) localStorage.setItem('felis_browser_bookmarks', data.browserBookmarks);
+
+            const vfs = getVfs();
+            if (data.files && Array.isArray(data.files) && vfs && typeof vfs.writeFile === 'function') {
+              for (const f of data.files) {
+                if (f.path && f.content !== undefined) {
+                  await vfs.writeFile(f.path, f.content, { overwrite: true });
+                }
+              }
+            }
+
+            showToast('System snapshot restored successfully!');
+            setTimeout(() => {
+              const p = getSafeParent();
+              if (p) p.location.reload();
+              else location.reload();
+            }, 800);
+          } catch (err) {
+            showToast('Snapshot restoration failed: ' + err.message);
+          }
+        });
+      }
+
+      // K. Factory Reset
+      document.getElementById('btn-factory-reset').addEventListener('click', () => {
+        if (confirm('Factory Reset FelisOS? This will clear all stored files, window layouts, and restore system defaults.')) {
+          localStorage.clear();
+          try {
+            indexedDB.deleteDatabase('felisos-vdisk');
+          } catch (_) {}
+          showToast('Restoring factory state...');
+          setTimeout(() => {
+            const p = getSafeParent();
+            if (p) p.location.reload();
+            else location.reload();
+          }, 500);
+        }
+      });
+
+      // Initialize sections
+      renderPastelAccents();
+      renderWallpapers();
+      renderInstalledApps();
+      updateStorageQuota();
+
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,1049 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Scribe - Text Editor</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    :root {
+      --scribe-bg: #18191c;
+      --scribe-toolbar: #222328;
+      --scribe-gutter: #1c1d22;
+      --scribe-border: rgba(255, 255, 255, 0.08);
+      --scribe-text: #e2e8f0;
+      --scribe-dim: #71717a;
+      --scribe-accent: #e879f9;
+      --scribe-accent-hover: #f0abfc;
+      --scribe-surface-hover: rgba(255, 255, 255, 0.08);
+      --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    }
+    body {
+      background-color: var(--scribe-bg);
+      color: var(--scribe-text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      user-select: none;
+    }
+
+    /* 1. Recovery Banner */
+    .recovery-banner {
+      background: linear-gradient(90deg, #701a75, #4c1d95);
+      color: #fdf4ff;
+      padding: 6px 14px;
+      font-size: 12.5px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid rgba(232, 121, 249, 0.4);
+      z-index: 50;
+      display: none;
+    }
+    .recovery-banner.active {
+      display: flex;
+    }
+    .recovery-actions {
+      display: flex;
+      gap: 8px;
+    }
+    .banner-btn {
+      background: rgba(255, 255, 255, 0.15);
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      color: #fff;
+      border-radius: 4px;
+      padding: 3px 10px;
+      font-size: 11.5px;
+      cursor: pointer;
+      font-weight: 500;
+    }
+    .banner-btn:hover {
+      background: rgba(255, 255, 255, 0.25);
+    }
+
+    /* 2. Main Toolbar */
+    .toolbar {
+      background-color: var(--scribe-toolbar);
+      border-bottom: 1px solid var(--scribe-border);
+      height: 40px;
+      display: flex;
+      align-items: center;
+      padding: 0 10px;
+      gap: 6px;
+      overflow-x: auto;
+    }
+    .toolbar::-webkit-scrollbar {
+      display: none;
+    }
+    .tool-group {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .tool-divider {
+      width: 1px;
+      height: 20px;
+      background: var(--scribe-border);
+      margin: 0 4px;
+    }
+    .btn {
+      background: transparent;
+      border: 1px solid transparent;
+      color: var(--scribe-text);
+      font-size: 12.5px;
+      padding: 4px 10px;
+      border-radius: 5px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      transition: all 0.12s ease;
+      white-space: nowrap;
+    }
+    .btn:hover {
+      background-color: var(--scribe-surface-hover);
+      border-color: rgba(255, 255, 255, 0.1);
+      color: #fff;
+    }
+    .btn:active {
+      transform: scale(0.97);
+    }
+    .btn-primary {
+      background-color: rgba(232, 121, 249, 0.18);
+      border-color: rgba(232, 121, 249, 0.4);
+      color: #f5d0fe;
+    }
+    .btn-primary:hover {
+      background-color: rgba(232, 121, 249, 0.28);
+      border-color: var(--scribe-accent);
+      color: #fff;
+    }
+    .file-path-badge {
+      font-size: 12px;
+      color: var(--scribe-dim);
+      font-family: var(--font-mono);
+      margin-left: auto;
+      padding: 3px 8px;
+      border-radius: 4px;
+      background: rgba(0, 0, 0, 0.2);
+      max-width: 260px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .status-indicator {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 11.5px;
+      font-weight: 500;
+      color: #4ade80;
+    }
+    .status-indicator.modified {
+      color: #e879f9;
+    }
+
+    /* 3. Search & Replace Bar */
+    .search-bar {
+      background-color: #202126;
+      border-bottom: 1px solid var(--scribe-border);
+      padding: 6px 12px;
+      display: none;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      z-index: 10;
+    }
+    .search-bar.active {
+      display: flex;
+    }
+    .search-input {
+      background: #141518;
+      border: 1px solid var(--scribe-border);
+      border-radius: 4px;
+      color: #fff;
+      padding: 4px 8px;
+      font-size: 12px;
+      outline: none;
+      width: 160px;
+    }
+    .search-input:focus {
+      border-color: var(--scribe-accent);
+    }
+    .match-count {
+      color: var(--scribe-dim);
+      font-size: 11px;
+      min-width: 55px;
+    }
+
+    /* 4. Editor Area */
+    .editor-wrapper {
+      flex: 1;
+      display: flex;
+      position: relative;
+      overflow: hidden;
+      background-color: var(--scribe-bg);
+    }
+    .line-numbers {
+      background-color: var(--scribe-gutter);
+      color: #52525b;
+      font-family: var(--font-mono);
+      font-size: 13px;
+      line-height: 20px;
+      padding: 12px 10px;
+      text-align: right;
+      user-select: none;
+      border-right: 1px solid var(--scribe-border);
+      overflow: hidden;
+      min-width: 48px;
+    }
+    
+    .editor-content-wrapper {
+      position: relative;
+      flex: 1;
+      height: 100%;
+      background-color: transparent;
+      overflow: hidden;
+    }
+    
+    #highlighting {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      margin: 0;
+      padding: 12px 16px;
+      font-family: var(--font-mono);
+      font-size: 13px;
+      line-height: 20px;
+      white-space: pre;
+      overflow-wrap: normal;
+      tab-size: 2;
+      color: var(--scribe-text);
+      background: transparent;
+      pointer-events: none;
+      z-index: 1;
+      overflow: hidden;
+    }
+    
+    .editor-textarea {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: transparent;
+      border: none;
+      color: transparent;
+      caret-color: var(--scribe-text);
+      font-family: var(--font-mono);
+      font-size: 13px;
+      line-height: 20px;
+      padding: 12px 16px;
+      outline: none;
+      resize: none;
+      white-space: pre;
+      overflow-wrap: normal;
+      overflow-y: scroll;
+      tab-size: 2;
+      user-select: text;
+      z-index: 2;
+    }
+
+    .editor-textarea::selection {
+      background: rgba(232, 121, 249, 0.3);
+      color: transparent;
+    }
+    
+    .editor-textarea::placeholder {
+      color: rgba(226, 232, 240, 0.4);
+    }
+    
+    .editor-textarea.wrap-enabled,
+    #highlighting.wrap-enabled {
+      white-space: pre-wrap;
+      overflow-wrap: break-word;
+    }
+
+    /* 5. Status Bar */
+    .statusbar {
+      background-color: var(--scribe-toolbar);
+      border-top: 1px solid var(--scribe-border);
+      height: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 12px;
+      font-size: 11px;
+      color: var(--scribe-dim);
+      font-family: var(--font-mono);
+    }
+    .statusbar-group {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .statusbar-item {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    /* File Picker Dialog */
+    .vfs-modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(4px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+    }
+    .vfs-modal.active {
+      display: flex;
+    }
+    .vfs-card {
+      background: #212226;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 10px;
+      width: 460px;
+      max-width: 90vw;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .vfs-header {
+      padding: 12px 16px;
+      background: #1a1b1e;
+      border-bottom: 1px solid var(--scribe-border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 13px;
+      font-weight: 500;
+    }
+    .vfs-body {
+      padding: 14px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .vfs-file-list {
+      background: #17181c;
+      border: 1px solid var(--scribe-border);
+      border-radius: 6px;
+      height: 180px;
+      overflow-y: auto;
+      padding: 4px;
+    }
+    .vfs-item {
+      padding: 6px 10px;
+      border-radius: 4px;
+      font-size: 12.5px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      color: #d1d5db;
+    }
+    .vfs-item:hover {
+      background: rgba(255, 255, 255, 0.08);
+      color: #fff;
+    }
+    .vfs-item.selected {
+      background: rgba(232, 121, 249, 0.22);
+      color: #fdf4ff;
+    }
+    .vfs-input {
+      background: #17181c;
+      border: 1px solid var(--scribe-border);
+      border-radius: 4px;
+      padding: 7px 10px;
+      color: #fff;
+      font-size: 13px;
+      outline: none;
+    }
+    .vfs-input:focus {
+      border-color: var(--scribe-accent);
+    }
+    .vfs-footer {
+      padding: 10px 16px;
+      background: #1a1b1e;
+      border-top: 1px solid var(--scribe-border);
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Recovery Alert Banner -->
+  <div class="recovery-banner" id="recovery-banner">
+    <span id="recovery-text">Autosave Recovery: An unsaved draft was recovered.</span>
+    <div class="recovery-actions">
+      <button class="banner-btn" id="btn-restore-recovery">Restore Draft</button>
+      <button class="banner-btn" id="btn-discard-recovery">Discard</button>
+    </div>
+  </div>
+
+  <!-- Main Toolbar -->
+  <div class="toolbar">
+    <div class="tool-group">
+      <button class="btn" id="btn-new" title="New Document (Ctrl+N)">📄 New</button>
+      <button class="btn" id="btn-open" title="Open File from VFS (Ctrl+O)">📂 Open</button>
+      <button class="btn btn-primary" id="btn-save" title="Save Document (Ctrl+S)">💾 Save</button>
+      <button class="btn" id="btn-save-as" title="Save As...">Save As…</button>
+    </div>
+
+    <div class="tool-divider"></div>
+
+    <div class="tool-group">
+      <button class="btn" id="btn-find" title="Find and Replace (Ctrl+F)">🔍 Find</button>
+      <button class="btn" id="btn-wrap" title="Toggle Word Wrap">Wrap: Off</button>
+      <button class="btn" id="btn-fontsize" title="Change Font Size">13px</button>
+      <button class="btn" id="btn-clear" title="Clear All">Clear</button>
+    </div>
+
+    <div class="file-path-badge" id="file-path-display">Untitled.txt</div>
+
+    <div class="status-indicator" id="save-status">
+      <span>●</span><span id="save-status-text">Saved</span>
+    </div>
+  </div>
+
+  <!-- Search & Replace Bar -->
+  <div class="search-bar" id="search-bar">
+    <input type="text" class="search-input" id="search-input" placeholder="Find text..." autocomplete="off">
+    <input type="text" class="search-input" id="replace-input" placeholder="Replace with..." autocomplete="off">
+    <button class="btn" id="btn-search-next">Next</button>
+    <button class="btn" id="btn-replace">Replace</button>
+    <button class="btn" id="btn-replace-all">Replace All</button>
+    <span class="match-count" id="match-count">0 found</span>
+    <button class="btn" id="btn-close-search" style="margin-left:auto;">×</button>
+  </div>
+
+  <!-- Editor Body -->
+  <div class="editor-wrapper">
+    <div class="line-numbers" id="line-numbers">1</div>
+    <div class="editor-content-wrapper">
+      <pre id="highlighting" aria-hidden="true"><code id="highlighting-content"></code></pre>
+      <textarea class="editor-textarea" id="editor" spellcheck="false" placeholder="Start typing your text here..."></textarea>
+    </div>
+  </div>
+
+  <!-- Status Bar -->
+  <div class="statusbar">
+    <div class="statusbar-group">
+      <div class="statusbar-item" id="cursor-pos">Ln 1, Col 1</div>
+      <div class="statusbar-item" id="doc-stats">0 lines, 0 chars</div>
+    </div>
+    <div class="statusbar-group">
+      <div class="statusbar-item" id="autosave-time">Autosave: Active</div>
+      <div class="statusbar-item">UTF-8</div>
+      <div class="statusbar-item" id="line-ending">LF</div>
+    </div>
+  </div>
+
+  <!-- VFS File Picker Modal -->
+  <div class="vfs-modal" id="vfs-modal">
+    <div class="vfs-card">
+      <div class="vfs-header">
+        <span id="vfs-modal-title">Open File from FelisOS VFS</span>
+        <button class="btn" id="btn-close-modal">×</button>
+      </div>
+      <div class="vfs-body">
+        <div style="font-size: 11.5px; color: var(--scribe-dim); display: flex; justify-content: space-between;">
+          <span id="vfs-location">Location: /vdisk/local/usr/home/documents</span>
+          <label style="cursor: pointer; color: var(--scribe-accent);">
+            Upload from device <input type="file" id="local-file-input" style="display: none;">
+          </label>
+        </div>
+        <div class="vfs-file-list" id="vfs-file-list">
+          <!-- Injected files -->
+        </div>
+        <input type="text" class="vfs-input" id="vfs-filename" placeholder="filename.txt">
+      </div>
+      <div class="vfs-footer">
+        <button class="btn" id="btn-modal-cancel">Cancel</button>
+        <button class="btn btn-primary" id="btn-modal-confirm">Open</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="../js/vfs.js"></script>
+  <script>
+    (function () {
+      'use strict';
+
+      function getSafeParent() {
+        try {
+          if (window.parent && window.parent !== window && window.parent.document) {
+            return window.parent;
+          }
+        } catch (_) {}
+        return null;
+      }
+
+      // Access Virtual Filesystem from parent if inside FelisOS iframe, or local
+      const getVfs = () => {
+        const p = getSafeParent();
+        return (p && p.FelisOSVFS) ? p.FelisOSVFS : window.FelisOSVFS;
+      };
+      const vfs = getVfs();
+
+      // State
+      let currentPath = null;
+      let isModified = false;
+      let autosaveTimer = null;
+      let modalMode = 'open'; // 'open' | 'save'
+      let fontSizes = ['12px', '13px', '15px', '18px'];
+      let fontIdx = 1;
+
+      // Elements
+      const editor = document.getElementById('editor');
+      const highlighting = document.getElementById('highlighting');
+      const highlightingContent = document.getElementById('highlighting-content');
+      const lineNumbers = document.getElementById('line-numbers');
+      const filePathDisplay = document.getElementById('file-path-display');
+      const saveStatus = document.getElementById('save-status');
+      const saveStatusText = document.getElementById('save-status-text');
+      const cursorPos = document.getElementById('cursor-pos');
+      const docStats = document.getElementById('doc-stats');
+      const autosaveTime = document.getElementById('autosave-time');
+      const lineEnding = document.getElementById('line-ending');
+      const recoveryBanner = document.getElementById('recovery-banner');
+      const recoveryText = document.getElementById('recovery-text');
+      const searchBar = document.getElementById('search-bar');
+      const searchInput = document.getElementById('search-input');
+      const replaceInput = document.getElementById('replace-input');
+      const matchCount = document.getElementById('match-count');
+      const vfsModal = document.getElementById('vfs-modal');
+      const vfsModalTitle = document.getElementById('vfs-modal-title');
+      const vfsFileList = document.getElementById('vfs-file-list');
+      const vfsFilename = document.getElementById('vfs-filename');
+      const btnModalConfirm = document.getElementById('btn-modal-confirm');
+      const localFileInput = document.getElementById('local-file-input');
+
+      // Constants
+      const AUTOSAVE_KEY = 'scribe_autosave_draft';
+      const DEFAULT_DIR = '/vdisk/local/usr/home/documents';
+      let pickerPath = DEFAULT_DIR;
+      let selectedFilePath = null;
+      let suggestedFilename = 'document.txt';
+
+      // Update syntax highlighting based on file extension
+      function updateHighlighting() {
+        let text = editor.value;
+        if (text[text.length - 1] === '\n') {
+          text += ' '; // Fix visual scrolling height for trailing newline
+        }
+        
+        const ext = (currentPath || suggestedFilename || "").split('.').pop().toLowerCase();
+        
+        // Base HTML escaping
+        text = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        
+        if (ext === 'js') {
+          text = text
+            .replace(/(&quot;.*?&quot;|&#39;.*?&#39;|`.*?`)/g, '<span class="token-string">$1</span>')
+            .replace(/\b(function|return|let|const|var|if|else|for|while|class|await|async|true|false|null|undefined)\b/g, '<span class="token-keyword">$1</span>')
+            .replace(/\b(\d+)\b/g, '<span class="token-number">$1</span>')
+            .replace(/(\/\/.*)/g, '<span class="token-comment">$1</span>');
+        } else if (ext === 'css') {
+          text = text
+            .replace(/(\/\*[\s\S]*?\*\/)/g, '<span class="token-comment">$1</span>')
+            .replace(/([a-z-]+)(?=\s*:)/gi, '<span class="token-property">$1</span>')
+            .replace(/(:)\s*([^;]+)(;)/g, '$1 <span class="token-value">$2</span>$3')
+            .replace(/([\.#][a-z0-9_-]+)/gi, '<span class="token-selector">$1</span>');
+        } else if (ext === 'html') {
+          text = text
+            .replace(/(&lt;!--[\s\S]*?--&gt;)/g, '<span class="token-comment">$1</span>')
+            .replace(/(&lt;\/?)([a-z0-9-]+)(.*?)(&gt;)/gi, (match, p1, p2, p3, p4) => {
+              const attrs = p3.replace(/([a-z-]+)=(&quot;.*?&quot;|&#39;.*?&#39;)/gi, '<span class="token-attr">$1</span>=<span class="token-string">$2</span>');
+              return `${p1}<span class="token-tag">${p2}</span>${attrs}${p4}`;
+            });
+        }
+        
+        highlightingContent.innerHTML = text;
+      }
+
+      // Update line numbers & stats
+      function updateMetrics() {
+        const text = editor.value;
+        const lines = text.split('\n');
+        const count = lines.length;
+
+        // Line numbers
+        let numbersHtml = '';
+        for (let i = 1; i <= count; i++) {
+          numbersHtml += i + '<br>';
+        }
+        lineNumbers.innerHTML = numbersHtml;
+
+        // Cursor position
+        const selStart = editor.selectionStart;
+        const textBefore = text.slice(0, selStart);
+        const curLine = textBefore.split('\n').length;
+        const lastNewline = textBefore.lastIndexOf('\n');
+        const curCol = selStart - lastNewline;
+        cursorPos.textContent = `Ln ${curLine}, Col ${curCol}`;
+
+        // Document statistics
+        const charCount = text.length;
+        docStats.textContent = `${count} ${count === 1 ? 'line' : 'lines'}, ${charCount.toLocaleString()} chars`;
+
+        // Line endings
+        lineEnding.textContent = text.includes('\r\n') ? 'CRLF' : 'LF';
+      }
+
+      // Sync scrolling between elements
+      editor.addEventListener('scroll', () => {
+        lineNumbers.scrollTop = editor.scrollTop;
+        highlighting.scrollTop = editor.scrollTop;
+        highlighting.scrollLeft = editor.scrollLeft;
+      });
+
+      // Track modifications
+      editor.addEventListener('input', () => {
+        markModified(true);
+        updateMetrics();
+        updateHighlighting();
+        scheduleAutosave();
+      });
+
+      editor.addEventListener('keyup', updateMetrics);
+      editor.addEventListener('click', updateMetrics);
+
+      function markModified(dirty) {
+        isModified = dirty;
+        if (dirty) {
+          saveStatus.className = 'status-indicator modified';
+          saveStatusText.textContent = 'Modified';
+          filePathDisplay.textContent = (currentPath || 'Untitled.txt') + ' *';
+        } else {
+          saveStatus.className = 'status-indicator';
+          saveStatusText.textContent = 'Saved';
+          filePathDisplay.textContent = currentPath || suggestedFilename || 'Untitled.txt';
+        }
+      }
+
+      // Autosave mechanism
+      function scheduleAutosave() {
+        clearTimeout(autosaveTimer);
+        autosaveTimer = setTimeout(performAutosave, 2500);
+      }
+
+      async function performAutosave() {
+        if (!isModified) return;
+        const draft = {
+          path: currentPath,
+          content: editor.value,
+          timestamp: Date.now(),
+          timeStr: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+        };
+
+        try {
+          localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(draft));
+          if (vfs && vfs.writeState) {
+            await vfs.writeState('scribe_recovery', draft);
+          }
+          autosaveTime.textContent = `Autosaved: ${draft.timeStr}`;
+        } catch (err) {
+          console.warn('Autosave write failed:', err);
+        }
+      }
+
+      // Crash / Recovery check on startup
+      async function checkRecovery() {
+        let savedDraft = null;
+        try {
+          if (vfs && vfs.readState) {
+            savedDraft = await vfs.readState('scribe_recovery', null);
+          }
+          if (!savedDraft) {
+            const raw = localStorage.getItem(AUTOSAVE_KEY);
+            if (raw) savedDraft = JSON.parse(raw);
+          }
+        } catch (_) {}
+
+        if (savedDraft && savedDraft.content && savedDraft.content.trim() !== '') {
+          recoveryBanner.classList.add('active');
+          recoveryText.textContent = `Autosave Recovery: An unsaved draft from ${savedDraft.timeStr || 'previous session'} was found.`;
+          
+          document.getElementById('btn-restore-recovery').onclick = () => {
+            editor.value = savedDraft.content;
+            currentPath = savedDraft.path;
+            markModified(true);
+            updateMetrics();
+            updateHighlighting();
+            recoveryBanner.classList.remove('active');
+          };
+          document.getElementById('btn-discard-recovery').onclick = () => {
+            localStorage.removeItem(AUTOSAVE_KEY);
+            if (vfs && vfs.writeState) vfs.writeState('scribe_recovery', null);
+            recoveryBanner.classList.remove('active');
+          };
+        }
+      }
+
+      // File Operations
+      function newFile() {
+        if (isModified && !confirm('Discard unsaved changes?')) return;
+        editor.value = '';
+        currentPath = null;
+        suggestedFilename = 'document.txt';
+        markModified(false);
+        updateMetrics();
+        updateHighlighting();
+        localStorage.removeItem(AUTOSAVE_KEY);
+      }
+
+      async function openFileModal() {
+        modalMode = 'open';
+        vfsModalTitle.textContent = 'Open File from FelisOS VFS';
+        btnModalConfirm.textContent = 'Open';
+        vfsFilename.value = '';
+        pickerPath = currentPath ? currentPath.slice(0, currentPath.lastIndexOf('/')) : DEFAULT_DIR;
+        await populateVfsList(pickerPath);
+        vfsModal.classList.add('active');
+      }
+
+      async function saveFileModal() {
+        modalMode = 'save';
+        vfsModalTitle.textContent = 'Save File to FelisOS VFS';
+        btnModalConfirm.textContent = 'Save';
+        vfsFilename.value = currentPath ? currentPath.split('/').pop() : suggestedFilename;
+        pickerPath = currentPath ? currentPath.slice(0, currentPath.lastIndexOf('/')) : DEFAULT_DIR;
+        await populateVfsList(pickerPath);
+        vfsModal.classList.add('active');
+      }
+
+      async function handleSave() {
+        if (!currentPath) {
+          saveFileModal();
+          return;
+        }
+        await writeToVfs(currentPath, editor.value);
+      }
+
+      async function writeToVfs(path, text) {
+        try {
+          if (!vfs) throw new Error('Virtual filesystem unavailable.');
+          const exists = await vfs.stat(path);
+          if (exists) {
+            await vfs.updateFile(path, text);
+          } else {
+            await vfs.writeFile(path, text);
+          }
+          currentPath = path;
+          suggestedFilename = path.split('/').pop();
+          pickerPath = path.slice(0, path.lastIndexOf('/')) || DEFAULT_DIR;
+          markModified(false);
+          localStorage.removeItem(AUTOSAVE_KEY);
+          autosaveTime.textContent = 'Saved to VFS';
+          updateHighlighting();
+        } catch (err) {
+          alert('Save failed: ' + err.message);
+        }
+      }
+
+      async function populateVfsList(directory = pickerPath) {
+        if (!vfs || !vfs.list) {
+          vfsFileList.textContent = 'Virtual filesystem unavailable.';
+          return;
+        }
+        pickerPath = vfs.normalizePath(directory);
+        selectedFilePath = null;
+        document.getElementById('vfs-location').textContent = `Location: ${pickerPath}`;
+        vfsFileList.innerHTML = '<div style="padding: 12px; color: var(--scribe-dim); font-size: 12px;">Loading directory...</div>';
+        let entries;
+        try {
+          entries = await vfs.list(pickerPath);
+        } catch (error) {
+          vfsFileList.textContent = `Unable to read this folder: ${error.message}`;
+          return;
+        }
+        vfsFileList.replaceChildren();
+        if (pickerPath !== vfs.ROOT) {
+          const parent = document.createElement('div');
+          parent.className = 'vfs-item';
+          parent.innerHTML = '<span>📁</span><span>..</span>';
+          parent.addEventListener('dblclick', () => {
+            populateVfsList(vfs.normalizePath(`${pickerPath}/..`)).catch(error => {
+              vfsFileList.textContent = error.message;
+            });
+          });
+          vfsFileList.appendChild(parent);
+        }
+
+        if (!entries.length) {
+          const empty = document.createElement('div');
+          empty.style.cssText = 'padding: 14px; text-align: center; color: var(--scribe-dim); font-size: 12px;';
+          empty.textContent = 'This folder is empty.';
+          vfsFileList.appendChild(empty);
+          return;
+        }
+
+        entries.forEach(entry => {
+          const item = document.createElement('div');
+          item.className = 'vfs-item';
+          item.dataset.path = entry.path;
+          item.dataset.type = entry.type;
+          const icon = document.createElement('span');
+          icon.textContent = entry.type === 'directory' ? '📁' : '📄';
+          const label = document.createElement('span');
+          label.textContent = entry.name;
+          item.append(icon, label);
+          if (entry.type === 'directory') {
+            item.addEventListener('dblclick', () => {
+              populateVfsList(entry.path).catch(error => {
+                vfsFileList.textContent = error.message;
+              });
+            });
+          }
+          item.addEventListener('click', () => {
+            document.querySelectorAll('.vfs-item').forEach(i => i.classList.remove('selected'));
+            item.classList.add('selected');
+            if (entry.type === 'file') {
+              selectedFilePath = entry.path;
+              vfsFilename.value = entry.name;
+            } else {
+              selectedFilePath = null;
+            }
+          });
+          item.addEventListener('dblclick', () => {
+            if (entry.type === 'file') {
+              selectedFilePath = entry.path;
+              vfsFilename.value = entry.name;
+              confirmModalAction();
+            }
+          });
+          vfsFileList.appendChild(item);
+        });
+      }
+
+      async function confirmModalAction() {
+        const name = vfsFilename.value.trim();
+        if (!name) return alert('Please enter or select a filename.');
+        if (/[\\/]/.test(name)) return alert('File names cannot contain path separators.');
+        const selectedName = selectedFilePath ? selectedFilePath.split('/').pop() : '';
+        const fullPath = selectedFilePath && selectedName === name
+          ? selectedFilePath
+          : `${pickerPath}/${name}`;
+
+        if (modalMode === 'open') {
+          if (isModified && !confirm('Discard unsaved changes?')) return;
+          try {
+            if (!vfs) throw new Error('Virtual filesystem unavailable.');
+            const content = await vfs.readFile(fullPath);
+            editor.value = content;
+            currentPath = fullPath;
+            suggestedFilename = name;
+            markModified(false);
+            updateMetrics();
+            updateHighlighting();
+            vfsModal.classList.remove('active');
+          } catch (err) {
+            alert('Unable to open file: ' + err.message);
+          }
+        } else {
+          // Save
+          await writeToVfs(fullPath, editor.value);
+          vfsModal.classList.remove('active');
+        }
+      }
+
+      async function receiveDocument(documentData) {
+        if (isModified && !confirm('Discard unsaved changes?')) return;
+        let content = documentData.content;
+        if (documentData.path) {
+          if (!vfs) throw new Error('Virtual filesystem unavailable.');
+          content = await vfs.readFile(documentData.path);
+        }
+        if (typeof content !== 'string') throw new Error('The selected document has no text content.');
+        editor.value = content;
+        currentPath = documentData.path || null;
+        suggestedFilename = documentData.name || (currentPath ? currentPath.split('/').pop() : suggestedFilename);
+        if (!currentPath && documentData.name) {
+          vfsFilename.value = suggestedFilename;
+        }
+        markModified(false);
+        updateMetrics();
+        updateHighlighting();
+        vfsModal.classList.remove('active');
+        editor.focus();
+      }
+
+      window.addEventListener('message', event => {
+        if (event.source !== window.parent || event.origin !== window.location.origin) return;
+        if (event.data?.type !== 'felisos:open-document') return;
+        receiveDocument(event.data.document || {}).catch(error => {
+          alert(`Unable to open document: ${error.message}`);
+        });
+      });
+
+      // Local file upload handling
+      localFileInput.addEventListener('change', event => {
+        const file = event.target.files[0];
+        if (!file) return;
+        if (isModified && !confirm('Discard unsaved changes?')) {
+          localFileInput.value = '';
+          return;
+        }
+        const reader = new FileReader();
+        reader.onload = e => {
+          editor.value = e.target.result;
+          currentPath = `${DEFAULT_DIR}/${file.name}`;
+          suggestedFilename = file.name;
+          markModified(true);
+          updateMetrics();
+          updateHighlighting();
+          vfsModal.classList.remove('active');
+        };
+        reader.readAsText(file, 'UTF-8');
+      });
+
+      // Find & Replace
+      document.getElementById('btn-find').addEventListener('click', () => {
+        searchBar.classList.toggle('active');
+        if (searchBar.classList.contains('active')) {
+          searchInput.focus();
+        }
+      });
+      document.getElementById('btn-close-search').addEventListener('click', () => {
+        searchBar.classList.remove('active');
+      });
+
+      function executeSearch() {
+        const query = searchInput.value;
+        if (!query) {
+          matchCount.textContent = '0 found';
+          return -1;
+        }
+        const text = editor.value;
+        let count = 0;
+        let pos = 0;
+        while ((pos = text.toLowerCase().indexOf(query.toLowerCase(), pos)) !== -1) {
+          count++;
+          pos += query.length;
+        }
+        matchCount.textContent = `${count} found`;
+        return count;
+      }
+
+      searchInput.addEventListener('input', executeSearch);
+
+      document.getElementById('btn-search-next').addEventListener('click', () => {
+        const query = searchInput.value;
+        if (!query) return;
+        const text = editor.value;
+        const start = editor.selectionEnd;
+        let index = text.toLowerCase().indexOf(query.toLowerCase(), start);
+        if (index === -1) {
+          index = text.toLowerCase().indexOf(query.toLowerCase(), 0);
+        }
+        if (index !== -1) {
+          editor.focus();
+          editor.setSelectionRange(index, index + query.length);
+        }
+      });
+
+      document.getElementById('btn-replace').addEventListener('click', () => {
+        const query = searchInput.value;
+        const replacement = replaceInput.value;
+        if (!query) return;
+        const start = editor.selectionStart;
+        const end = editor.selectionEnd;
+        const selected = editor.value.slice(start, end);
+        if (selected.toLowerCase() === query.toLowerCase()) {
+          editor.setRangeText(replacement, start, end, 'end');
+          markModified(true);
+          updateMetrics();
+          updateHighlighting();
+        }
+        document.getElementById('btn-search-next').click();
+      });
+
+      document.getElementById('btn-replace-all').addEventListener('click', () => {
+        const query = searchInput.value;
+        const replacement = replaceInput.value;
+        if (!query) return;
+        const regex = new RegExp(query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+        editor.value = editor.value.replace(regex, replacement);
+        markModified(true);
+        updateMetrics();
+        updateHighlighting();
+        executeSearch();
+      });
+
+      // Word Wrap Toggle
+      const btnWrap = document.getElementById('btn-wrap');
+      btnWrap.addEventListener('click', () => {
+        editor.classList.toggle('wrap-enabled');
+        highlighting.classList.toggle('wrap-enabled');
+        const isWrapped = editor.classList.contains('wrap-enabled');
+        btnWrap.textContent = isWrapped ? 'Wrap: On' : 'Wrap: Off';
+      });
+
+      // Font Size toggle
+      const btnFontsize = document.getElementById('btn-fontsize');
+      btnFontsize.addEventListener('click', () => {
+        fontIdx = (fontIdx + 1) % fontSizes.length;
+        const sz = fontSizes[fontIdx];
+        editor.style.fontSize = sz;
+        highlighting.style.fontSize = sz;
+        lineNumbers.style.fontSize = sz;
+        btnFontsize.textContent = sz;
+      });
+
+      // Clear editor
+      document.getElementById('btn-clear').addEventListener('click', () => {
+        if (confirm('Clear the entire document?')) {
+          editor.value = '';
+          markModified(true);
+          updateMetrics();
+          updateHighlighting();
+        }
+      });
+
+      // Modal Listeners
+      document.getElementById('btn-new').addEventListener('click', newFile);
+      document.getElementById('btn-open').addEventListener('click', openFileModal);
+      document.getElementById('btn-save').addEventListener('click', handleSave);
+      document.getElementById('btn-save-as').addEventListener('click', saveFileModal);
+      document.getElementById('btn-close-modal').addEventListener('click', () => vfsModal.classList.remove('active'));
+      document.getElementById('btn-modal-cancel').addEventListener('click', () => vfsModal.classList.remove('active'));
+      btnModalConfirm.addEventListener('click', confirmModalAction);
+
+      // Keyboard Shortcuts
+      window.addEventListener('keydown', e => {
+        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+          e.preventDefault();
+          handleSave();
+        } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'o') {
+          e.preventDefault();
+          openFileModal();
+        } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'n') {
+          e.preventDefault();
+          newFile();
+        } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'f') {
+          e.preventDefault();
+          searchBar.classList.add('active');
+          searchInput.focus();
+        }
+      });
+
+      // Initial startup
+      checkRecovery();
+      updateMetrics();
+      updateHighlighting();
+    })();
+  </script>
+</body>
+</html>

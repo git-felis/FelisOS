@@ -1,0 +1,10 @@
+<svg width="132" height="137" viewBox="0 0 132 137" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M66 2.02075L123.158 35.0208V101.021L66 134.021L8.84232 101.021V35.0208L66 2.02075Z" fill="#221325" fill-opacity="0.5"/>
+<mask id="stroke0_98_172" maskUnits="userSpaceOnUse" x="7" y="-0.979248" width="118" height="138" fill="black">
+<rect fill="white" x="7" y="-0.979248" width="118" height="138"/>
+<path d="M66 2.02075L123.158 35.0208V101.021L66 134.021L8.84232 101.021V35.0208L66 2.02075Z"/>
+</mask>
+<path d="M66 2.02075L123.158 35.0208V101.021L66 134.021L8.84232 101.021V35.0208L66 2.02075Z" stroke-width="3.5" stroke-miterlimit="2.9238" stroke="white" mask="url(#stroke0_98_172)"/>
+<foreignObject x="10.0865" y="50.5592" width="92.5995" height="80.941"><div xmlns="http://www.w3.org/1999/xhtml" style="backdrop-filter:blur(10px);height:100%;width:100%"></div></foreignObject><path data-figma-bg-blur-radius="20" d="M82.5 101.021L64.7308 111.175L30.4615 90.8669V70.5592" stroke-width="0.75" stroke-miterlimit="2.9238" stroke-linejoin="bevel" stroke="white"/>
+<foreignObject x="29.3196" y="4.24652" width="78.4377" height="51.103"><div xmlns="http://www.w3.org/1999/xhtml" style="backdrop-filter:blur(10px);height:100%;width:100%"></div></foreignObject><path data-figma-bg-blur-radius="20" d="M49.5 35.0208L68.5384 24.5753L87.5769 35.0208" stroke-width="0.75" stroke-miterlimit="2.9238" stroke-linejoin="bevel" stroke="white"/>
+</svg>

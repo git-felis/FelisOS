@@ -1,0 +1,1154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Browser - Chromium Shell</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    :root {
+      --chrome-tabbar-bg: #1f1f23;
+      --chrome-toolbar-bg: #2b2a33;
+      --chrome-tab-active-bg: #2b2a33;
+      --chrome-tab-inactive-bg: #1a1a1e;
+      --chrome-text: #e1e1e6;
+      --chrome-text-dim: #94949e;
+      --chrome-accent: #8ab4f8;
+      --chrome-border: rgba(255, 255, 255, 0.08);
+      --omnibox-bg: #1c1b22;
+      --omnibox-border: #42414d;
+    }
+    body {
+      background-color: var(--chrome-tabbar-bg);
+      color: var(--chrome-text);
+      font-family: "Manrope", Inter, Roboto, sans-serif;
+			font-weight: 300;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      user-select: none;
+    }
+
+    /* 1. Chrome Tab Strip */
+    .tab-strip-container {
+      display: flex;
+      align-items: flex-end;
+      background-color: var(--chrome-tabbar-bg);
+      padding: 6px 8px 0 8px;
+      height: 38px;
+      gap: 2px;
+      position: relative;
+    }
+    .tabs-wrapper {
+      display: flex;
+      align-items: flex-end;
+      gap: 2px;
+      flex: 1;
+      overflow-x: auto;
+      overflow-y: hidden;
+    }
+    .tabs-wrapper::-webkit-scrollbar {
+      display: none;
+    }
+    .chrome-tab {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      height: 32px;
+      max-width: 210px;
+      min-width: 110px;
+      flex: 1;
+      padding: 0 10px;
+      border-radius: 8px 8px 0 0;
+      background-color: var(--chrome-tab-inactive-bg);
+      color: var(--chrome-text-dim);
+      font-size: 10px;
+      cursor: pointer;
+      position: relative;
+      border-top: 1px solid var(--chrome-border);
+      border-left: 1px solid var(--chrome-border);
+      border-right: 1px solid var(--chrome-border);
+      transition: background-color 0.12s ease, color 0.12s ease;
+    }
+    .chrome-tab:hover {
+      background-color: #24242a;
+      color: var(--chrome-text);
+    }
+    .chrome-tab.active {
+      background-color: var(--chrome-tab-active-bg);
+      color: var(--chrome-text);
+      font-weight: 200;
+      border-bottom: 1px solid var(--chrome-tab-active-bg);
+      box-shadow: 0 -1px 4px rgba(0, 0, 0, 0.2);
+    }
+    .tab-favicon {
+      width: 14px;
+      height: 14px;
+      flex-shrink: 0;
+    }
+    .tab-title {
+      flex: 1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .tab-close {
+      width: 18px;
+      height: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      border: none;
+      background: transparent;
+      color: var(--chrome-text-dim);
+      cursor: pointer;
+      font-size: 13px;
+      line-height: 1;
+    }
+    .tab-close:hover {
+      background-color: rgba(255, 255, 255, 0.15);
+      color: #fff;
+    }
+    .new-tab-btn {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      border: none;
+      background: transparent;
+      color: var(--chrome-text-dim);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: default;
+      font-size: 18px;
+      margin-left: 4px;
+      margin-bottom: 2px;
+      transition: background-color 0.1s;
+    }
+    .new-tab-btn:hover {
+      background-color: rgba(255, 255, 255, 0.1);
+      color: var(--chrome-text);
+    }
+
+    /* 2. Chrome Navigation Toolbar */
+    .toolbar-container {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      height: 48px;
+      padding: 0 6px;
+      background-color: var(--chrome-toolbar-bg);
+      border-bottom: 1px solid var(--chrome-border);
+    }
+    .nav-btn {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      border: none;
+      background: transparent;
+      color: var(--chrome-text);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 12px;
+      transition: background-color 0.1s;
+    }
+    .nav-btn:disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
+    }
+    .nav-btn:not(:disabled):hover {
+      background-color: rgba(255, 255, 255, 0.1);
+    }
+    .nav-btn:not(:disabled):active {
+      background-color: rgba(255, 255, 255, 0.18);
+    }
+
+    /* Omnibox */
+    .omnibox-wrapper {
+      flex: 1;
+      height: 30px;
+      background-color: var(--omnibox-bg);
+      border: 1px solid var(--omnibox-border);
+      border-radius: 16px;
+      display: flex;
+      align-items: center;
+      padding: 0 10px;
+      gap: 8px;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .omnibox-wrapper:focus-within {
+      border-color: var(--chrome-accent);
+      box-shadow: 0 0 0 1px var(--chrome-accent);
+    }
+    .security-badge {
+      font-size: 12px;
+      color: #94949e;
+      cursor: pointer;
+    }
+    .security-badge.secure {
+      color: #8ab4f8;
+    }
+    .omnibox-input {
+      flex: 1;
+      border: none;
+      background: transparent;
+      outline: none;
+      color: var(--chrome-text);
+      font-size: 13px;
+      user-select: text;
+    }
+    .omnibox-actions {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .omnibox-action-btn {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      border: none;
+      background: transparent;
+      color: #94949e;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+    }
+    .omnibox-action-btn:hover {
+      color: #fff;
+    }
+    .omnibox-action-btn.is-bookmarked {
+      color: #facc15;
+    }
+
+    /* Menu Dropdown */
+    .menu-wrapper {
+      position: relative;
+    }
+    .menu-dropdown {
+      position: absolute;
+      top: 36px;
+      right: 0;
+      width: 200px;
+      background-color: #24252a;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 8px;
+      box-shadow: 0 12px 28px rgba(0, 0, 0, 0.6);
+      padding: 6px;
+      z-index: 100;
+      display: none;
+    }
+    .menu-dropdown.active {
+      display: block;
+    }
+    .menu-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 12px;
+      font-size: 13px;
+      border-radius: 5px;
+      color: #e1e1e6;
+      cursor: pointer;
+      transition: background-color 0.1s;
+    }
+    .menu-item:hover {
+      background-color: rgba(255, 255, 255, 0.08);
+      color: #fff;
+    }
+    .menu-shortcut {
+      font-size: 11px;
+      color: #82848c;
+    }
+    .menu-divider {
+      height: 1px;
+      background: rgba(255, 255, 255, 0.08);
+      margin: 4px 0;
+    }
+
+    /* 3. Chrome Bookmarks Bar */
+    .bookmarks-bar {
+      display: flex;
+      align-items: center;
+      height: 28px;
+      padding: 0 12px;
+      background-color: var(--chrome-toolbar-bg);
+      border-bottom: 1px solid var(--chrome-border);
+      gap: 4px;
+      overflow-x: auto;
+    }
+    .bookmarks-bar::-webkit-scrollbar {
+      display: none;
+    }
+    .bookmark-chip {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 11.5px;
+      color: var(--chrome-text-dim);
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background-color 0.1s, color 0.1s;
+    }
+    .bookmark-chip:hover {
+      background-color: rgba(255, 255, 255, 0.1);
+      color: #fff;
+    }
+
+    /* 4. Content Area */
+    .viewport-container {
+      flex: 1;
+      position: relative;
+      background-color: #17181c;
+      display: flex;
+      flex-direction: column;
+    }
+    .content-frame {
+      width: 100%;
+      height: 100%;
+      border: none;
+      flex: 1;
+      background-color: #ffffff;
+    }
+
+    /* Built-in Portal Pages */
+    .portal-view {
+      flex: 1;
+      width: 100%;
+      height: 100%;
+      background: #202124;
+      color: #e8eaed;
+      overflow-y: auto;
+      padding: 32px 20px;
+      display: none;
+    }
+    .portal-view.active {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    /* New Tab Page */
+    .newtab-box {
+      max-width: 640px;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin-top: 40px;
+    }
+    .chrome-logo-text {
+		  font-family: "Google Sans Flex", Manrope;
+      font-size: 60px;
+      font-weight: 300;
+      letter-spacing: -4px;
+      margin-bottom: 28px;
+      display: flex;
+      gap: 2px;
+    }
+    .c-blue { color: #4285f4; }
+    .c-red { color: #ea4335; }
+    .c-yellow { color: #fbbc05; }
+    .c-green { color: #34a853; }
+    .c-felis { color: #e879f9; }
+
+    .newtab-searchbar {
+      width: 100%;
+      height: 46px;
+      background: #303134;
+      border: 1px solid #3c4043;
+      border-radius: 24px;
+      display: flex;
+      align-items: center;
+      padding: 0 16px;
+      gap: 12px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+      transition: background 0.15s, box-shadow 0.15s;
+    }
+    .newtab-searchbar:focus-within {
+      background: #3c4043;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+    }
+    .newtab-searchbar input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      outline: none;
+      color: #fff;
+      font-size: 14px;
+      user-select: text;
+    }
+
+    /* Shortcut Grid */
+    .shortcuts-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-top: 36px;
+      width: 100%;
+    }
+    .shortcut-card {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 8px;
+      border-radius: 8px;
+      cursor: pointer;
+      text-decoration: none;
+      color: #e8eaed;
+      transition: background-color 0.12s;
+    }
+    .shortcut-card:hover {
+      background-color: rgba(255, 255, 255, 0.08);
+    }
+    .shortcut-icon-circle {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: #303134;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+    }
+    .shortcut-label {
+      font-size: 12px;
+      text-align: center;
+      max-width: 90px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* History & Bookmarks Views */
+    .page-title {
+      font-size: 22px;
+      font-weight: 100;
+      margin-bottom: 20px;
+      width: 100%;
+      max-width: 680px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .history-list, .bookmarks-list {
+      width: 100%;
+      max-width: 680px;
+      background: #2b2a33;
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      overflow: hidden;
+    }
+    .history-item, .bookmark-item {
+      display: flex;
+      align-items: center;
+      padding: 12px 14px;
+      gap: 12px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      font-size: 13px;
+    }
+    .history-item:last-child, .bookmark-item:last-child {
+      border-bottom: none;
+    }
+    .history-time {
+      color: #94949e;
+      font-size: 11px;
+      width: 65px;
+      flex-shrink: 0;
+    }
+    .history-title {
+      flex: 1;
+      color: #8ab4f8;
+      cursor: pointer;
+      text-decoration: none;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .history-title:hover {
+      text-decoration: underline;
+    }
+    .history-url {
+      color: #94949e;
+      font-size: 11px;
+      max-width: 200px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .delete-item-btn {
+      background: transparent;
+      border: none;
+      color: #94949e;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    .delete-item-btn:hover {
+      color: #f87171;
+    }
+
+    /* Frame Warning / Helper */
+    .frame-banner {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      background: #374151;
+      color: #f3f4f6;
+      padding: 4px 12px;
+      font-size: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      z-index: 10;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    .frame-banner.hidden {
+      display: none;
+    }
+    .frame-banner a {
+      color: #8ab4f8;
+      text-decoration: underline;
+      cursor: pointer;
+    }
+    .close-banner-btn {
+      background: transparent;
+      border: none;
+      color: #fff;
+      cursor: pointer;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 1. Chrome Tab Strip -->
+  <div class="tab-strip-container">
+    <div class="tabs-wrapper" id="tabs-wrapper">
+      <!-- Tabs dynamically injected -->
+    </div>
+    <button class="new-tab-btn" id="btn-new-tab" title="New tab (Ctrl+T)">+</button>
+  </div>
+
+  <!-- 2. Chrome Navigation Toolbar -->
+  <div class="toolbar-container">
+    <button class="nav-btn" id="btn-back" title="Click to go back">[<]</button>
+    <button class="nav-btn" id="btn-forward" title="Click to go forward">[>]</button>
+    <button class="nav-btn" id="btn-reload" title="Reload this page">↻</button>
+    <button class="nav-btn" id="btn-home" title="Open Home page">⌂</button>
+
+    <div class="omnibox-wrapper">
+      <span class="security-badge secure" id="omnibox-security" title="Connection is secure">🔒</span>
+      <input type="text" class="omnibox-input" id="omnibox" placeholder="Search Google or type a URL" autocomplete="off" spellcheck="false">
+      <div class="omnibox-actions">
+        <button class="omnibox-action-btn" id="btn-star" title="Bookmark this tab">★</button>
+        <button class="omnibox-action-btn" id="btn-go" title="Go">[>>]</button>
+      </div>
+    </div>
+
+    <div class="menu-wrapper">
+      <button class="nav-btn" id="btn-menu" title="Customize and control FelisOS Browser">⋮</button>
+      <div class="menu-dropdown" id="menu-dropdown">
+        <div class="menu-item" data-action="new-tab">
+          <span>New tab</span>
+          <span class="menu-shortcut">Ctrl+T</span>
+        </div>
+        <div class="menu-item" data-action="history">
+          <span>History</span>
+          <span class="menu-shortcut">Ctrl+H</span>
+        </div>
+        <div class="menu-item" data-action="bookmarks">
+          <span>Bookmarks</span>
+          <span class="menu-shortcut">Ctrl+B</span>
+        </div>
+        <div class="menu-divider"></div>
+        <div class="menu-item" data-action="dino">
+          <span>Offline Runner Game</span>
+          <span class="menu-shortcut">Space</span>
+        </div>
+        <div class="menu-item" data-action="about">
+          <span>About FelisOS Chromium WebView</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. Chrome Bookmarks Bar -->
+  <div class="bookmarks-bar" id="bookmarks-bar">
+    <button class="bookmark-chip" data-url="https://en.wikipedia.org" data-title="Wikipedia">
+      <span>[W]</span><span>Wikipedia</span>
+    </button>
+    <button class="bookmark-chip" data-url="https://duckduckgo.com" data-title="DuckDuckGo">
+      <span>[?]</span><span>DuckDuckGo</span>
+    </button>
+    <button class="bookmark-chip" data-url="https://news.ycombinator.com" data-title="Hacker News">
+      <span>📰</span><span>Hacker News</span>
+    </button>
+    <button class="bookmark-chip" data-url="chrome://newtab" data-title="New Tab">
+      <span>[+]</span><span>New Tab</span>
+    </button>
+    <button class="bookmark-chip" data-url="chrome://history" data-title="History">
+      <span>🕒</span><span>History</span>
+    </button>
+    <button class="bookmark-chip" data-url="offline.html" data-title="Felis Runner">
+      <span>[🦖...]</span><span>Felis Runner</span>
+    </button>
+  </div>
+
+  <!-- 4. Content Area -->
+  <div class="viewport-container">
+    <div class="frame-banner hidden" id="frame-banner">
+      <span>Note: If this webpage blocks embedded viewing, <a id="banner-open-window">open in external window</a> or <a id="banner-open-offline">view offline screen</a>.</span>
+      <button class="close-banner-btn" id="banner-close">×</button>
+    </div>
+
+    <!-- Active Web Viewport Frame -->
+    <iframe class="content-frame" id="content-frame" src="about:blank" allow="fullscreen; autoplay"></iframe>
+
+    <!-- Internal Portal Views -->
+    <div class="portal-view active" id="view-newtab">
+      <div class="newtab-box">
+        <div class="chrome-logo-text">
+          <span class="c-blue">C</span>
+          <span class="c-red">h</span>
+          <span class="c-yellow">r</span>
+          <span class="c-blue">o</span>
+          <span class="c-green">m</span>
+          <span class="c-red">e</span>
+        </div>
+        <div class="newtab-searchbar">
+          <span>🔍</span>
+          <input type="text" id="newtab-input" placeholder="Search the web or type a URL" autocomplete="off">
+        </div>
+        <div class="shortcuts-grid">
+          <div class="shortcut-card" data-url="https://en.wikipedia.org">
+            <div class="shortcut-icon-circle">🌐</div>
+            <div class="shortcut-label">Wikipedia</div>
+          </div>
+          <div class="shortcut-card" data-url="https://duckduckgo.com">
+            <div class="shortcut-icon-circle">🦆</div>
+            <div class="shortcut-label">DuckDuckGo</div>
+          </div>
+          <div class="shortcut-card" data-url="https://news.ycombinator.com">
+            <div class="shortcut-icon-circle">📰</div>
+            <div class="shortcut-label">YCombinator</div>
+          </div>
+          <div class="shortcut-card" data-url="offline.html">
+            <div class="shortcut-icon-circle">🦖</div>
+            <div class="shortcut-label">Run Dino!</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- History View -->
+    <div class="portal-view" id="view-history">
+      <div class="page-title">
+        <span>Browsing History</span>
+        <button class="nav-btn" style="width: auto; padding: 4px 12px; border-radius: 4px; font-size: 12px; background: #3c4043;" id="clear-history-btn">Clear History</button>
+      </div>
+      <div class="history-list" id="history-items-container">
+        <!-- Injected dynamically -->
+      </div>
+    </div>
+
+    <!-- Bookmarks View -->
+    <div class="portal-view" id="view-bookmarks">
+      <div class="page-title">
+        <span>Bookmarks Manager</span>
+      </div>
+      <div class="bookmarks-list" id="bookmarks-items-container">
+        <!-- Injected dynamically -->
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      'use strict';
+
+      // State
+      let tabs = [];
+      let activeTabId = null;
+      let nextTabId = 1;
+
+      // DOM Elements
+      const tabsWrapper = document.getElementById('tabs-wrapper');
+      const btnNewTab = document.getElementById('btn-new-tab');
+      const btnBack = document.getElementById('btn-back');
+      const btnForward = document.getElementById('btn-forward');
+      const btnReload = document.getElementById('btn-reload');
+      const btnHome = document.getElementById('btn-home');
+      const omnibox = document.getElementById('omnibox');
+      const omniboxSecurity = document.getElementById('omnibox-security');
+      const btnStar = document.getElementById('btn-star');
+      const btnGo = document.getElementById('btn-go');
+      const btnMenu = document.getElementById('btn-menu');
+      const menuDropdown = document.getElementById('menu-dropdown');
+      const contentFrame = document.getElementById('content-frame');
+      const viewNewTab = document.getElementById('view-newtab');
+      const viewHistory = document.getElementById('view-history');
+      const viewBookmarks = document.getElementById('view-bookmarks');
+      const newtabInput = document.getElementById('newtab-input');
+      const frameBanner = document.getElementById('frame-banner');
+      const bannerOpenWindow = document.getElementById('banner-open-window');
+      const bannerOpenOffline = document.getElementById('banner-open-offline');
+      const bannerClose = document.getElementById('banner-close');
+      const bookmarksBar = document.getElementById('bookmarks-bar');
+
+      // Storage
+      const HISTORY_KEY = 'felis_browser_history';
+      const BOOKMARKS_KEY = 'felis_browser_bookmarks';
+
+      function loadHistory() {
+        try {
+          return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
+        } catch (_) {
+          return [];
+        }
+      }
+
+      function saveHistory(history) {
+        localStorage.setItem(HISTORY_KEY, JSON.stringify(history.slice(0, 100)));
+      }
+
+      function recordHistory(url, title) {
+        if (!url || url.startsWith('chrome://')) return;
+        const history = loadHistory();
+        history.unshift({
+          id: Date.now(),
+          url,
+          title: title || url,
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          date: new Date().toLocaleDateString(),
+        });
+        saveHistory(history);
+      }
+
+      function loadBookmarks() {
+        try {
+          const stored = JSON.parse(localStorage.getItem(BOOKMARKS_KEY));
+          if (Array.isArray(stored)) return stored;
+        } catch (_) {}
+        return [
+          { title: 'Wikipedia', url: 'https://en.wikipedia.org', icon: '🌐' },
+          { title: 'DuckDuckGo', url: 'https://duckduckgo.com', icon: '🔍' },
+          { title: 'Hacker News', url: 'https://news.ycombinator.com', icon: '📰' },
+          { title: 'Felis Runner', url: 'offline.html', icon: '🦖' },
+        ];
+      }
+
+      function saveBookmarks(bookmarks) {
+        localStorage.setItem(BOOKMARKS_KEY, JSON.stringify(bookmarks));
+      }
+
+      // Tab Management
+      function createTab(url = 'chrome://newtab', title = 'New Tab') {
+        const id = nextTabId++;
+        const tab = {
+          id,
+          title,
+          url,
+          history: [url],
+          historyIndex: 0,
+        };
+        tabs.push(tab);
+        renderTabs();
+        switchTab(id);
+        return tab;
+      }
+
+      function closeTab(id, event) {
+        if (event) event.stopPropagation();
+        if (tabs.length === 1) {
+          // If only 1 tab left, reset it to newtab instead of closing completely
+          navigateTo('chrome://newtab');
+          return;
+        }
+        const index = tabs.findIndex(t => t.id === id);
+        if (index === -1) return;
+
+        tabs.splice(index, 1);
+        if (activeTabId === id) {
+          const nextActive = tabs[Math.max(0, index - 1)];
+          activeTabId = nextActive.id;
+        }
+        renderTabs();
+        switchTab(activeTabId);
+      }
+
+      function switchTab(id) {
+        const tab = tabs.find(t => t.id === id);
+        if (!tab) return;
+
+        activeTabId = id;
+        renderTabs();
+        renderTabContent(tab);
+      }
+
+      function renderTabs() {
+        tabsWrapper.innerHTML = '';
+        tabs.forEach(tab => {
+          const el = document.createElement('div');
+          el.className = `chrome-tab ${tab.id === activeTabId ? 'active' : ''}`;
+          el.innerHTML = `
+            <span class="tab-favicon">${getFavicon(tab.url)}</span>
+            <span class="tab-title">${escapeHtml(tab.title)}</span>
+            <button class="tab-close" title="Close tab">×</button>
+          `;
+          el.addEventListener('click', () => switchTab(tab.id));
+          el.querySelector('.tab-close').addEventListener('click', e => closeTab(tab.id, e));
+          tabsWrapper.appendChild(el);
+        });
+      }
+
+      function getFavicon(url) {
+        if (url.startsWith('chrome://newtab')) return '⭐';
+        if (url.startsWith('chrome://history')) return '🕒';
+        if (url.startsWith('chrome://bookmarks')) return '🔖';
+        if (url.includes('offline') || url.includes('dino')) return '🦖';
+        if (url.includes('wikipedia')) return '🌐';
+        if (url.includes('duckduckgo')) return '🦆';
+        if (url.includes('news.ycombinator')) return '📰';
+        return '🌐';
+      }
+
+      function renderTabContent(tab) {
+        omnibox.value = tab.url.startsWith('chrome://newtab') ? '' : tab.url;
+        updateNavControls(tab);
+
+        // Hide all portal views first
+        viewNewTab.classList.remove('active');
+        viewHistory.classList.remove('active');
+        viewBookmarks.classList.remove('active');
+        contentFrame.style.display = 'none';
+        frameBanner.classList.add('hidden');
+
+        // Check bookmarks star
+        const bookmarks = loadBookmarks();
+        const isBookmarked = bookmarks.some(b => b.url === tab.url);
+        btnStar.classList.toggle('is-bookmarked', isBookmarked);
+
+        if (tab.url === 'chrome://newtab') {
+          viewNewTab.classList.add('active');
+          omniboxSecurity.textContent = '⭐';
+          omniboxSecurity.className = 'security-badge';
+          omnibox.placeholder = 'Search Google or type a URL';
+        } else if (tab.url === 'chrome://history') {
+          viewHistory.classList.add('active');
+          renderHistoryList();
+          omniboxSecurity.textContent = '🕒';
+        } else if (tab.url === 'chrome://bookmarks') {
+          viewBookmarks.classList.add('active');
+          renderBookmarksList();
+          omniboxSecurity.textContent = '🔖';
+        } else {
+          // Live web / external URL or local app
+          contentFrame.style.display = 'block';
+          omniboxSecurity.textContent = tab.url.startsWith('https://') ? '🔒' : 'ⓘ';
+          omniboxSecurity.className = `security-badge ${tab.url.startsWith('https://') ? 'secure' : ''}`;
+
+          if (contentFrame.src !== tab.url) {
+            contentFrame.src = tab.url;
+          }
+
+          if (tab.url.startsWith('http://') || tab.url.startsWith('https://')) {
+            frameBanner.classList.remove('hidden');
+            bannerOpenWindow.onclick = () => window.open(tab.url, '_blank');
+            bannerOpenOffline.onclick = () => navigateTo(`offline.html?url=${encodeURIComponent(tab.url)}`);
+          }
+        }
+      }
+
+      function updateNavControls(tab) {
+        btnBack.disabled = tab.historyIndex <= 0;
+        btnForward.disabled = tab.historyIndex >= tab.history.length - 1;
+      }
+
+      function navigateTo(inputUrl) {
+        const tab = tabs.find(t => t.id === activeTabId);
+        if (!tab) return;
+
+        let finalUrl = inputUrl.trim();
+        let title = finalUrl;
+
+        if (finalUrl === '' || finalUrl === 'chrome://newtab') {
+          finalUrl = 'chrome://newtab';
+          title = 'New Tab';
+        } else if (finalUrl === 'chrome://history') {
+          title = 'History';
+        } else if (finalUrl === 'chrome://bookmarks') {
+          title = 'Bookmarks';
+        } else if (finalUrl === 'chrome://dino') {
+          finalUrl = 'offline.html';
+          title = 'Felis Runner';
+        } else if (!/^https?:\/\//i.test(finalUrl) && !finalUrl.startsWith('chrome://') && !finalUrl.startsWith('offline.html')) {
+          // If contains dot, assume domain, else search DuckDuckGo
+          if (finalUrl.includes('.') && !finalUrl.includes(' ')) {
+            finalUrl = `https://${finalUrl}`;
+            title = finalUrl;
+          } else {
+            finalUrl = `https://duckduckgo.com/?q=${encodeURIComponent(finalUrl)}`;
+            title = `Search: ${inputUrl}`;
+          }
+        }
+
+        // Push history
+        if (tab.history[tab.historyIndex] !== finalUrl) {
+          tab.history = tab.history.slice(0, tab.historyIndex + 1);
+          tab.history.push(finalUrl);
+          tab.historyIndex = tab.history.length - 1;
+        }
+
+        tab.url = finalUrl;
+        tab.title = title;
+        recordHistory(finalUrl, title);
+        renderTabs();
+        renderTabContent(tab);
+      }
+
+      // Event Listeners
+      btnNewTab.addEventListener('click', () => createTab());
+
+      btnBack.addEventListener('click', () => {
+        const tab = tabs.find(t => t.id === activeTabId);
+        if (tab && tab.historyIndex > 0) {
+          tab.historyIndex--;
+          tab.url = tab.history[tab.historyIndex];
+          tab.title = tab.url;
+          renderTabs();
+          renderTabContent(tab);
+        }
+      });
+
+      btnForward.addEventListener('click', () => {
+        const tab = tabs.find(t => t.id === activeTabId);
+        if (tab && tab.historyIndex < tab.history.length - 1) {
+          tab.historyIndex++;
+          tab.url = tab.history[tab.historyIndex];
+          tab.title = tab.url;
+          renderTabs();
+          renderTabContent(tab);
+        }
+      });
+
+      btnReload.addEventListener('click', () => {
+        const tab = tabs.find(t => t.id === activeTabId);
+        if (tab) {
+          btnReload.style.transform = 'rotate(360deg)';
+          btnReload.style.transition = 'transform 0.4s ease';
+          setTimeout(() => {
+            btnReload.style.transform = 'none';
+            btnReload.style.transition = 'none';
+          }, 400);
+          renderTabContent(tab);
+        }
+      });
+
+      btnHome.addEventListener('click', () => navigateTo('chrome://newtab'));
+
+      omnibox.addEventListener('keydown', e => {
+        if (e.key === 'Enter') {
+          navigateTo(omnibox.value);
+        }
+      });
+
+      btnGo.addEventListener('click', () => navigateTo(omnibox.value));
+
+      newtabInput.addEventListener('keydown', e => {
+        if (e.key === 'Enter') {
+          navigateTo(newtabInput.value);
+        }
+      });
+
+      // Bookmarks Bar clicks
+      bookmarksBar.addEventListener('click', e => {
+        const chip = e.target.closest('.bookmark-chip');
+        if (!chip) return;
+        navigateTo(chip.dataset.url);
+      });
+
+      // Star Bookmark Toggle
+      btnStar.addEventListener('click', () => {
+        const tab = tabs.find(t => t.id === activeTabId);
+        if (!tab || tab.url.startsWith('chrome://newtab')) return;
+
+        let bookmarks = loadBookmarks();
+        const index = bookmarks.findIndex(b => b.url === tab.url);
+        if (index >= 0) {
+          bookmarks.splice(index, 1);
+          btnStar.classList.remove('is-bookmarked');
+        } else {
+          bookmarks.push({
+            title: tab.title,
+            url: tab.url,
+            icon: getFavicon(tab.url),
+          });
+          btnStar.classList.add('is-bookmarked');
+        }
+        saveBookmarks(bookmarks);
+        renderBookmarksBar();
+      });
+
+      function renderBookmarksBar() {
+        const bookmarks = loadBookmarks();
+        bookmarksBar.innerHTML = '';
+        bookmarks.forEach(b => {
+          const btn = document.createElement('button');
+          btn.className = 'bookmark-chip';
+          btn.dataset.url = b.url;
+          btn.innerHTML = `<span>${b.icon || '⭐'}</span><span>${escapeHtml(b.title)}</span>`;
+          bookmarksBar.appendChild(btn);
+        });
+      }
+
+      // Menu Dropdown
+      btnMenu.addEventListener('click', e => {
+        e.stopPropagation();
+        menuDropdown.classList.toggle('active');
+      });
+
+      document.addEventListener('click', () => {
+        menuDropdown.classList.remove('active');
+      });
+
+      menuDropdown.addEventListener('click', e => {
+        const item = e.target.closest('.menu-item');
+        if (!item) return;
+        const action = item.dataset.action;
+        if (action === 'new-tab') createTab();
+        if (action === 'history') navigateTo('chrome://history');
+        if (action === 'bookmarks') navigateTo('chrome://bookmarks');
+        if (action === 'dino') navigateTo('offline.html');
+        if (action === 'about') alert('FelisOS Chromium Shell v1.0.0\nBuilt on FelisOS Desktop Engine');
+      });
+
+      bannerClose.addEventListener('click', () => frameBanner.classList.add('hidden'));
+
+      // History page renderer
+      function renderHistoryList() {
+        const container = document.getElementById('history-items-container');
+        const history = loadHistory();
+        if (!history.length) {
+          container.innerHTML = '<div style="padding: 24px; text-align: center; color: #94949e;">No browsing history found.</div>';
+          return;
+        }
+        container.innerHTML = '';
+        history.forEach((h, idx) => {
+          const row = document.createElement('div');
+          row.className = 'history-item';
+          row.innerHTML = `
+            <span class="history-time">${h.timestamp}</span>
+            <a class="history-title" href="#" data-url="${escapeHtml(h.url)}">${escapeHtml(h.title)}</a>
+            <span class="history-url">${escapeHtml(h.url)}</span>
+            <button class="delete-item-btn" data-index="${idx}" title="Delete">×</button>
+          `;
+          row.querySelector('.history-title').addEventListener('click', e => {
+            e.preventDefault();
+            navigateTo(h.url);
+          });
+          row.querySelector('.delete-item-btn').addEventListener('click', () => {
+            const list = loadHistory();
+            list.splice(idx, 1);
+            saveHistory(list);
+            renderHistoryList();
+          });
+          container.appendChild(row);
+        });
+      }
+
+      document.getElementById('clear-history-btn').addEventListener('click', () => {
+        if (confirm('Clear all browsing history?')) {
+          localStorage.removeItem(HISTORY_KEY);
+          renderHistoryList();
+        }
+      });
+
+      // Bookmarks page renderer
+      function renderBookmarksList() {
+        const container = document.getElementById('bookmarks-items-container');
+        const bookmarks = loadBookmarks();
+        if (!bookmarks.length) {
+          container.innerHTML = '<div style="padding: 24px; text-align: center; color: #94949e;">No bookmarks saved.</div>';
+          return;
+        }
+        container.innerHTML = '';
+        bookmarks.forEach((b, idx) => {
+          const row = document.createElement('div');
+          row.className = 'bookmark-item';
+          row.innerHTML = `
+            <span>${b.icon || '⭐'}</span>
+            <a class="history-title" href="#" data-url="${escapeHtml(b.url)}">${escapeHtml(b.title)}</a>
+            <span class="history-url">${escapeHtml(b.url)}</span>
+            <button class="delete-item-btn" data-index="${idx}" title="Delete">×</button>
+          `;
+          row.querySelector('.history-title').addEventListener('click', e => {
+            e.preventDefault();
+            navigateTo(b.url);
+          });
+          row.querySelector('.delete-item-btn').addEventListener('click', () => {
+            const list = loadBookmarks();
+            list.splice(idx, 1);
+            saveBookmarks(list);
+            renderBookmarksList();
+            renderBookmarksBar();
+          });
+          container.appendChild(row);
+        });
+      }
+
+      // Shortcut cards in New Tab
+      document.querySelectorAll('.shortcut-card').forEach(card => {
+        card.addEventListener('click', () => {
+          navigateTo(card.dataset.url);
+        });
+      });
+
+      // Keyboard shortcuts
+      window.addEventListener('keydown', e => {
+        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 't') {
+          e.preventDefault();
+          createTab();
+        } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'w') {
+          e.preventDefault();
+          if (activeTabId) closeTab(activeTabId);
+        } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'h') {
+          e.preventDefault();
+          navigateTo('chrome://history');
+        } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'l') {
+          e.preventDefault();
+          omnibox.focus();
+          omnibox.select();
+        }
+      });
+
+      function escapeHtml(str) {
+        return String(str || '')
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#039;');
+      }
+
+      // Initial tab
+      createTab('chrome://newtab', 'New Tab');
+      renderBookmarksBar();
+    })();
+  </script>
+</body>
+</html>
